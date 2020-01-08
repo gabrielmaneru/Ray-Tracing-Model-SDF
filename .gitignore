@@ -1,0 +1,17 @@
+
+.vs/
+
+*.filters
+obj/
+
+*.exe
+
+*.iobj
+
+*.ipdb
+
+*.pdb
+
+*.ilk
+
+*.user

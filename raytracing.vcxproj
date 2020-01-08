@@ -133,6 +133,7 @@
     <ClCompile Include="src\core\main.cpp" />
     <ClCompile Include="src\core\session.cpp" />
     <ClCompile Include="src\raytracer\raytracer.cpp" />
+    <ClCompile Include="src\scene\scene.cpp" />
     <ClCompile Include="src\utils\math_utils.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -379,7 +380,10 @@
     <ClInclude Include="extern\include\glm\vec4.hpp" />
     <ClInclude Include="extern\include\glm\vector_relational.hpp" />
     <ClInclude Include="src\core\session.h" />
+    <ClInclude Include="src\raytracer\ray.h" />
     <ClInclude Include="src\raytracer\raytracer.h" />
+    <ClInclude Include="src\scene\scene.h" />
+    <ClInclude Include="src\scene\shape.h" />
     <ClInclude Include="src\utils\map2d.h" />
     <ClInclude Include="src\utils\math_utils.h" />
   </ItemGroup>

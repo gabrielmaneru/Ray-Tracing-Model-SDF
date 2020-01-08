@@ -8,11 +8,12 @@ Author: Gabriel Mañeru - gabriel.m
 - End Header --------------------------------------------------------*/
 
 #pragma once
+#include <string>
 
 namespace session
 {
 	extern bool end;
-	bool init();
+	bool init(int width, int height, std::string scene);
 	void update();
 	void shutdown();
 }

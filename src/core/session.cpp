@@ -8,13 +8,15 @@ Author: Gabriel Mañeru - gabriel.m
 - End Header --------------------------------------------------------*/
 
 #include "session.h"
+#include <scene/scene.h>
 #include <raytracer/raytracer.h>
 
 bool session::end{false};
 
-bool session::init()
+bool session::init(int width, int height, std::string scene_path)
 {
-	if (!raytracer->init()) return false;
+	if (!scene->init(scene_path)) return false;
+	if (!raytracer->init(width, height)) return false;
 	return true;
 }
 

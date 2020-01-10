@@ -1,8 +1,9 @@
 
 .vs/
 
-*.filters
 obj/
+
+*.filters
 
 *.exe
 
@@ -14,4 +15,4 @@ obj/
 
 *.ilk
 
-*.user
+*.db

@@ -7,7 +7,7 @@ struct map2d
 {
 	map2d() = default;
 	map2d(size_t width, size_t height, TYPE default_value = TYPE{});
-	void setup(size_t width, size_t height);
+	virtual void setup(size_t width, size_t height);
 	void clear(TYPE default_value);
 	void loop(std::function<TYPE(size_t, size_t, TYPE)> loop_function);
 	TYPE get(size_t x, size_t y)const;

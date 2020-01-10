@@ -1,8 +1,6 @@
 #pragma once
-#include <utils/map2d.h>
-#include <glm/glm.h>
+#include "screen.h"
 
-using screen = map2d<vec3>;
 class c_raytracer
 {
 public:

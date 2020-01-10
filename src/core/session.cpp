@@ -31,4 +31,5 @@ void session::update()
 void session::shutdown()
 {
 	raytracer->shutdown();
+	scene->shutdown();
 }

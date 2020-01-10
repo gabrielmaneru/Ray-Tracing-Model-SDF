@@ -1,12 +1,18 @@
 #include "raytracer.h"
+#include <scene/scene.h>
 #include <core/session.h>
 
 c_raytracer* raytracer = new c_raytracer;
 
-bool c_raytracer::init(int width, int height)
+void c_raytracer::create_rays(size_t width, size_t height)
+{
+
+}
+
+bool c_raytracer::init(size_t width, size_t height)
 {
 	m_screen.setup(width, height);
-	// Create Rays
+	create_rays(width, height);
 	return true;
 }
 

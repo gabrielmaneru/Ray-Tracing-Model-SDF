@@ -134,6 +134,7 @@
     <ClCompile Include="src\core\session.cpp" />
     <ClCompile Include="src\raytracer\raytracer.cpp" />
     <ClCompile Include="src\raytracer\screen.cpp" />
+    <ClCompile Include="src\scene\camera.cpp" />
     <ClCompile Include="src\scene\scene.cpp" />
     <ClCompile Include="src\scene\sphere.cpp" />
     <ClCompile Include="src\utils\math_utils.cpp" />
@@ -384,6 +385,7 @@
     <ClInclude Include="src\core\session.h" />
     <ClInclude Include="src\raytracer\raytracer.h" />
     <ClInclude Include="src\raytracer\screen.h" />
+    <ClInclude Include="src\scene\camera.h" />
     <ClInclude Include="src\scene\scene.h" />
     <ClInclude Include="src\scene\shape.h" />
     <ClInclude Include="src\scene\sphere.h" />

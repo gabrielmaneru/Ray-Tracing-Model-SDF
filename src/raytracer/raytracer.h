@@ -3,8 +3,11 @@
 
 class c_raytracer
 {
+	void create_rays(size_t width, size_t height);
+
+
 public:
-	bool init(int width, int height);
+	bool init(size_t width, size_t height);
 	void update();
 	void shutdown();
 

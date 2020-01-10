@@ -6,6 +6,7 @@
 #include <iomanip>
 
 c_raytracer* raytracer = new c_raytracer;
+
 void debug_print(const char * title, size_t v=0, size_t v_max=0)
 {
 	if (v_max > 0)
@@ -20,15 +21,19 @@ void debug_print(const char * title, size_t v=0, size_t v_max=0)
 			<< std::fixed << std::setprecision(2)
 			<< std::setw(6)
 			<< coef<size_t>(0, v_max, v)*100.f
-			<< "%"
+			<< "%  "
 			<< std::flush;
 	}
 	else
 	{
 		std::cout << '\r'
-			<< title << " ..."
+			<< title << "...  "
 			<< std::flush;
 	}
+}
+void end_debug_print()
+{
+	std::cout << "v/" << std::endl;
 }
 
 void c_raytracer::create_rays(size_t width, size_t height)
@@ -42,6 +47,7 @@ void c_raytracer::create_rays(size_t width, size_t height)
 
 	debug_print("Allocating Rays");
 	m_rays.resize(width*height);
+	end_debug_print();
 
 	for (size_t y = 0; y < height; y++)
 	{
@@ -58,13 +64,14 @@ void c_raytracer::create_rays(size_t width, size_t height)
 		}
 		debug_print("Computing Rays", (y+1)*width, m_rays.size());
 	}
+	end_debug_print();
 }
 
 bool c_raytracer::init(size_t width, size_t height)
 {
 	debug_print("Allocating Screen");
 	m_screen.setup(width, height);
-	std::cout << std::endl;
+	end_debug_print();
 
 	create_rays(width, height);
 	return true;
@@ -91,7 +98,7 @@ void c_raytracer::update()
 	debug_print("Throwing Rays", m_thrown_count, m_rays.size());
 
 	if(m_thrown_count == m_rays.size())
-		session::end = true;
+		session::end = true, end_debug_print();
 }
 
 void c_raytracer::shutdown()
@@ -99,4 +106,5 @@ void c_raytracer::shutdown()
 	debug_print("Storing Image");
 	std::string name = scene->m_scene_path;
 	m_screen.output(name.substr(0, name.find('.'))+".png");
+	end_debug_print();
 }

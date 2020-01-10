@@ -1,9 +1,10 @@
 #include "sphere.h"
+#include <raytracer/geometry.h>
 
 sphere::sphere(vec3 center, float radius, vec3 color)
 	: shape(color), m_center(center), m_radius(radius) {}
 
-void sphere::ray_intersect() const
+float sphere::ray_intersect(const ray & r) const
 {
-	// TODO
+	return intersection_ray_sphere(r, *this);
 }

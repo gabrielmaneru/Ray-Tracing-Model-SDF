@@ -35,9 +35,8 @@ bool c_scene::init(std::string scene_path)
 
 	if (file.is_open())
 	{
+		m_scene_path = scene_path;
 		std::string line;
-		size_t idx;
-
 		while (std::getline(file, line))
 		{
 			if (line.size() == 0U || line[0] == '#')
@@ -54,15 +53,35 @@ bool c_scene::init(std::string scene_path)
 			}
 			else if (line.substr(0, 6) == "CAMERA")
 			{
-				vec3 plane_center = parse_vec3(line);
+				vec3 origin = parse_vec3(line);
 				vec3 u_vector = parse_vec3(line);
 				vec3 v_vector = parse_vec3(line);
 				float focal_length = parse_flt(line);
-				m_camera = new camera{ plane_center, u_vector, v_vector, focal_length };
+				m_camera = new camera{ origin, u_vector, v_vector, focal_length };
 			}
 		}
 	}
 	return true;
+}
+
+vec4 c_scene::raycast(const ray & r) const
+{
+	float min_time{ FLT_MAX };
+	vec3 color;
+
+	for (auto& s : m_shapes)
+	{
+		float t = s->ray_intersect(r);
+		if (t < min_time)
+		{
+			min_time = t;
+			color = s->m_color;
+		}
+	}
+
+	if (min_time < FLT_MAX)
+		return vec4(color.r, color.g, color.b, 1.0f);
+	return vec4{ 0.0f };
 }
 
 void c_scene::shutdown()

@@ -2,14 +2,16 @@
 #include <core/session.h>
 #include <scene/scene.h>
 #include <utils/math_utils.h>
+#include <utils/profiler.h>
 #include <iostream>
 #include <iomanip>
+#include <omp.h>
 
 c_raytracer* raytracer = new c_raytracer;
 
 void debug_print(const char * title, size_t v=0, size_t v_max=0)
 {
-	if (v_max > 0)
+	if (v_max > 1)
 	{
 		std::cout << '\r'
 			<< title << ": "
@@ -31,74 +33,60 @@ void debug_print(const char * title, size_t v=0, size_t v_max=0)
 			<< std::flush;
 	}
 }
-void end_debug_print()
+void endline_debug_print()
 {
 	std::cout << "v/" << std::endl;
-}
-
-void c_raytracer::create_rays(size_t width, size_t height)
-{
-	camera * pCam = scene->m_camera;
-	assert(pCam != nullptr);
-	
-	vec3 eye = pCam->get_eye();
-	float half_width = static_cast<float>(width)*0.5f;
-	float half_height = static_cast<float>(height)*0.5f;
-
-	debug_print("Allocating Rays");
-	m_rays.resize(width*height);
-	end_debug_print();
-
-	for (size_t y = 0; y < height; y++)
-	{
-		vec3 v = (static_cast<float>(y) - half_height + 0.5f) / half_height * pCam->m_v_vector;
-		for (size_t x = 0; x < width; x++)
-		{
-			vec3 u = (static_cast<float>(x) - half_width + 0.5f) / half_width * pCam->m_u_vector;
-			vec3 target = pCam->m_origin + u - v;
-
-			ray& r = m_rays[y*width + x];
-			r.m_origin = eye;
-			r.m_direction = target - eye;
-			r.m_screen_coords = { x,y };
-		}
-		debug_print("Computing Rays", (y+1)*width, m_rays.size());
-	}
-	end_debug_print();
 }
 
 bool c_raytracer::init(size_t width, size_t height)
 {
 	debug_print("Allocating Screen");
 	m_screen.setup(width, height);
-	end_debug_print();
-
-	create_rays(width, height);
+	endline_debug_print();
 	return true;
 }
 
 void c_raytracer::update()
 {
-	const size_t max_iteration = 9973;
-	size_t target_iteration;
-	if (m_rays.size() < m_thrown_count + max_iteration)
-		target_iteration = m_rays.size();
-	else
-		target_iteration = m_thrown_count + max_iteration;
+	// Get screen resolution
+	size_t width, height;
+	m_screen.get_resolution(width, height);
+	size_t pixel_count = width*height;
 
-	//#pragma omp parallel for
-	for (size_t i = m_thrown_count; i < target_iteration; i++)
+	// Precompute camera data
+	camera * pCam = scene->m_camera;
+	assert(pCam != nullptr);
+	vec3 eye = pCam->get_eye();
+	float half_width = static_cast<float>(width)*0.5f;
+	float half_height = static_cast<float>(height)*0.5f;
+	vec3 u_scr = pCam->m_u_vector / half_width;
+	vec3 v_scr = pCam->m_v_vector / half_height;
+	vec3 p_0 = pCam->m_origin + (0.5f - half_width)*u_scr - (0.5f - half_height)*v_scr;
+
+	// Start loop
+	size_t print_step = pixel_count / 10;
+	START_FRAME("profiler");
+	#pragma omp parallel for
+	for (size_t p = 0; p < pixel_count; p++)
 	{
-		const ray& r = m_rays[i];
-		vec4 result = scene->raycast(r);
-		if (result.w == 1.0f)
-			m_screen.set(r.m_screen_coords, vec3(result));
-	}
-	m_thrown_count = target_iteration;
-	debug_print("Throwing Rays", m_thrown_count, m_rays.size());
+		size_t x = p % width, y = p / width;
+		vec3 target = p_0 + static_cast<float>(x)*u_scr - static_cast<float>(y)*v_scr;
+		m_screen.set(x, y, scene->raycast({ eye,target - eye }));
 
-	if(m_thrown_count == m_rays.size())
-		session::end = true, end_debug_print();
+		if(p%print_step == 0)
+			debug_print("Throwing Rays", p, pixel_count);
+	}
+	END_FRAME();
+	debug_print("Throwing Rays", pixel_count, pixel_count);
+	endline_debug_print();
+
+	// Output profiler data
+	size_t cc = GET_PROFILER_DATA()[0]->m_time;
+	debug_print(("Clock cycles " + std::to_string(cc) + " - Order " + std::to_string(std::to_string(cc).size())).c_str());
+	endline_debug_print();
+
+	// End Program
+	session::end = true;
 }
 
 void c_raytracer::shutdown()
@@ -106,5 +94,5 @@ void c_raytracer::shutdown()
 	debug_print("Storing Image");
 	std::string name = scene->m_scene_path;
 	m_screen.output(name.substr(0, name.find('.'))+".png");
-	end_debug_print();
+	endline_debug_print();
 }

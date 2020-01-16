@@ -64,11 +64,10 @@ bool c_scene::init(std::string scene_path)
 	return true;
 }
 
-vec4 c_scene::raycast(const ray & r) const
+vec3 c_scene::raycast(const ray & r) const
 {
 	float min_time{ FLT_MAX };
-	vec3 color;
-
+	vec3 color{ 0.0f };
 	for (auto& s : m_shapes)
 	{
 		float t = s->ray_intersect(r);
@@ -78,10 +77,7 @@ vec4 c_scene::raycast(const ray & r) const
 			color = s->m_color;
 		}
 	}
-
-	if (min_time < FLT_MAX)
-		return vec4(color.r, color.g, color.b, 1.0f);
-	return vec4{ 0.0f };
+	return color;
 }
 
 void c_scene::shutdown()

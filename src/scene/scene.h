@@ -8,7 +8,7 @@ class c_scene
 {
 public:
 	bool init(std::string scene_path);
-	vec4 raycast(const ray& r)const;
+	vec3 raycast(const ray& r)const;
 	void shutdown();
 
 	std::vector<shape*> m_shapes;

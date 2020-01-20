@@ -15,10 +15,16 @@ Author: Gabriel Mañeru - gabriel.m
 int main(int argc, char *argv[])
 //int CALLBACK WinMain(__in HINSTANCE hInstance, __in HINSTANCE hPrevInstance, __in LPSTR lpCmdLine, __in int nCmdShow)
 {
-	int res_x, res_y;
-	std::string scene;
+	int res_x = 500, res_y = 500;
+	std::string scene = "SampleScene01.txt";
 
-	if (argc == 4)
+	if (argc == 1);
+	else if (argc == 3)
+	{
+		res_x = std::atoi(argv[1]);
+		res_y = std::atoi(argv[2]);
+	}
+	else if (argc == 4)
 	{
 		res_x = std::atoi(argv[1]);
 		res_y = std::atoi(argv[2]);

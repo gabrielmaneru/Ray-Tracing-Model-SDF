@@ -60,6 +60,7 @@ bool c_scene::init(std::string scene_path)
 				m_camera = new camera{ origin, u_vector, v_vector, focal_length };
 			}
 		}
+		assert(m_camera != nullptr);
 	}
 	return true;
 }

@@ -9,7 +9,7 @@
 
 c_raytracer* raytracer = new c_raytracer;
 
-void debug_print(const char * title, size_t v=0, size_t v_max=0)
+void debug_print(const char * title, int v=0, int v_max=0)
 {
 	if (v_max > 1)
 	{
@@ -22,7 +22,7 @@ void debug_print(const char * title, size_t v=0, size_t v_max=0)
 			<< " - "
 			<< std::fixed << std::setprecision(2)
 			<< std::setw(6)
-			<< coef<size_t>(0, v_max, v)*100.f
+			<< coef(0, v_max, v)*100.f
 			<< "%  "
 			<< std::flush;
 	}
@@ -49,31 +49,31 @@ bool c_raytracer::init(size_t width, size_t height)
 void c_raytracer::update()
 {
 	// Get screen resolution
-	size_t width, height;
+	int width, height;
 	m_screen.get_resolution(width, height);
-	size_t pixel_count = width*height;
+	int pixel_count = static_cast<int>(width*height);
 
 	// Precompute camera data
-	camera * pCam = scene->m_camera;
-	assert(pCam != nullptr);
-	vec3 eye = pCam->get_eye();
+	camera * pcam = scene->m_camera;
+	vec3 eye = pcam->get_eye();
 	float half_width = static_cast<float>(width)*0.5f;
 	float half_height = static_cast<float>(height)*0.5f;
-	vec3 u_scr = pCam->m_u_vector / half_width;
-	vec3 v_scr = pCam->m_v_vector / half_height;
-	vec3 p_0 = pCam->m_origin + (0.5f - half_width)*u_scr - (0.5f - half_height)*v_scr;
+	vec3 u_scr = pcam->m_u_vector / half_width;
+	vec3 v_scr = pcam->m_v_vector / half_height;
+	vec3 p_0 = pcam->m_origin + (0.5f - half_width)*u_scr - (0.5f - half_height)*v_scr;
 
 	// Start loop
-	size_t print_step = pixel_count / 10;
+	int debug_step = max(pixel_count/11, 1);
 	START_FRAME("profiler");
 	#pragma omp parallel for
-	for (size_t p = 0; p < pixel_count; p++)
+	for (int p = 0; p < pixel_count; p++)
 	{
-		size_t x = p % width, y = p / width;
+		int x = p % width, y = p / width;
 		vec3 target = p_0 + static_cast<float>(x)*u_scr - static_cast<float>(y)*v_scr;
-		m_screen.set(x, y, scene->raycast({ eye,target - eye }));
+		vec3 color = scene->raycast({ eye,target - eye });
+		m_screen.set(p, color);
 
-		if(p%print_step == 0)
+		if(p%debug_step == 0)
 			debug_print("Throwing Rays", p, pixel_count);
 	}
 	END_FRAME();
@@ -82,7 +82,7 @@ void c_raytracer::update()
 
 	// Output profiler data
 	size_t cc = GET_PROFILER_DATA()[0]->m_time;
-	debug_print(("Clock cycles " + std::to_string(cc) + " - Order " + std::to_string(std::to_string(cc).size())).c_str());
+	debug_print(("Clock cycles " + std::to_string(cc) + " (Order " + std::to_string(std::to_string(cc).size()) + ")").c_str());
 	endline_debug_print();
 
 	// End Program
@@ -93,6 +93,6 @@ void c_raytracer::shutdown()
 {
 	debug_print("Storing Image");
 	std::string name = scene->m_scene_path;
-	m_screen.output(name.substr(0, name.find('.'))+".png");
+	m_screen.output(name.substr(0, name.find_last_of('.'))+".png");
 	endline_debug_print();
 }

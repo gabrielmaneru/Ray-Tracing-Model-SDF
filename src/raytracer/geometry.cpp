@@ -2,7 +2,7 @@
 
 float intersection_ray_sphere(const ray & r, const sphere & s)
 {
-	vec3 ray_sphere = -s.m_center + r.m_origin;
+	vec3 ray_sphere = r.m_origin - s.m_center;
 	float a = glm::dot(r.m_direction, r.m_direction);
 	float b = 2.0f * glm::dot(ray_sphere, r.m_direction);
 	float c = glm::dot(ray_sphere, ray_sphere) - s.m_radius*s.m_radius;

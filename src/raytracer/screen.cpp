@@ -18,6 +18,11 @@ void screen::set(size_t x, size_t y, vec3 value)
 	map2d<vec3>::set(x, y,value);
 }
 
+void screen::set(int idx, vec3 value)
+{
+	m_values[idx] = value;
+}
+
 void screen::output(const std::string& path)const
 {
 	std::vector<char> data;
@@ -32,9 +37,9 @@ void screen::output(const std::string& path)const
 	stbi_write_png(path.c_str(), (int)m_width, (int)m_height, 3, data.data(), 0);
 }
 
-void screen::get_resolution(size_t& width, size_t& height)
+void screen::get_resolution(int& width, int& height)
 {
-	width = m_width, height = m_height;
+	width = static_cast<int>(m_width), height = static_cast<int>(m_height);
 }
 
 void screen::clear()

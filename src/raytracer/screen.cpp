@@ -1,11 +1,150 @@
 #include "screen.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image/stb_image_write.h>
+#include <iostream>
+
+void load_shaders()
+{
+	const char *vertexShaderSource =
+	"#version 330 core\n"
+	"layout (location = 0) in vec3 aPos;\n"
+	"out vec3 vPos;\n"
+	"void main()\n"
+	"{\n"
+	"   vPos=aPos;\n"
+	"   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+	"}\0"
+	;
+	const char *fragmentShaderSource =
+	"#version 330 core\n"
+	"in vec3 vPos;\n"
+	"out vec4 FragColor;\n"
+	"uniform sampler2D textsamp;\n"
+	"void main()\n"
+	"{\n"
+	"   FragColor = vec4(texture(textsamp,vPos.xy*0.5+0.5).rgb, 1.0f);\n"
+	"}\n\0"
+	;
+
+	int vertexShader = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+	glCompileShader(vertexShader);
+
+	int success;
+	char infoLog[512];
+	glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
+	if (!success)
+	{
+		glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
+		std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
+	}
+
+	int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+	glCompileShader(fragmentShader);
+
+	glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+	if (!success)
+	{
+		glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
+		std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
+	}
+
+	int shaderProgram = glCreateProgram();
+	glAttachShader(shaderProgram, vertexShader);
+	glAttachShader(shaderProgram, fragmentShader);
+	glLinkProgram(shaderProgram);
+
+	glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+	if (!success) {
+		glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
+		std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
+	}
+	glDeleteShader(vertexShader);
+	glDeleteShader(fragmentShader);
+	glUseProgram(shaderProgram);
+}
+void load_quad()
+{
+	float vertices[] = {
+					-1.f, -1.f, 0.0f,
+					 1.f, -1.f, 0.0f,
+					-1.f,  1.f, 0.0f,
+					-1.f,  1.f, 0.0f,
+					 1.f, -1.f, 0.0f,
+					 1.f,  1.f, 0.0f
+	};
+	unsigned int VAO, VBO;
+	glGenVertexArrays(1, &VAO);
+	glGenBuffers(1, &VBO);
+	glBindVertexArray(VAO);
+
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+}
 
 void screen::setup(size_t width, size_t height)
 {
 	map2d<vec3>::setup(width, height);
 	clear();
+
+	if (glfwInit())
+	{
+		m_window = glfwCreateWindow((int)width, (int)height, "Raytracer", nullptr, nullptr);
+		if (m_window != nullptr)
+		{
+			glfwMakeContextCurrent(m_window);
+			if (!gl3wInit() && gl3wIsSupported(3, 3))
+			{
+				load_shaders();
+				load_quad();
+
+				glGenTextures(1, &m_texture);
+				glBindTexture(GL_TEXTURE_2D, m_texture);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+				glBindTexture(GL_TEXTURE_2D, m_texture);
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, (GLsizei)m_width, (GLsizei)m_height, 0, GL_RGB, GL_FLOAT, m_values.data());
+
+				return;
+			}
+			destroy();
+		}
+	}
+	glfwTerminate();
+}
+
+void screen::render()
+{
+	if (m_window != nullptr)
+	{
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		glBindTexture(GL_TEXTURE_2D, m_texture);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, (GLsizei)m_width, (GLsizei)m_height, 0, GL_RGB, GL_FLOAT, m_values.data());
+
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+		
+		glfwSwapBuffers(m_window);
+		glfwPollEvents();
+		if (glfwWindowShouldClose(m_window))
+			destroy();
+	}
+}
+
+void screen::destroy()
+{
+	if (m_window != nullptr)
+	{
+		m_window = nullptr;
+		glfwTerminate();
+	}
 }
 
 vec3 screen::get(size_t x, size_t y) const

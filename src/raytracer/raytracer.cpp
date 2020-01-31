@@ -64,6 +64,7 @@ void c_raytracer::update()
 
 	// Start loop
 	int debug_step = max(pixel_count/11, 1);
+	int last = -1;
 	START_FRAME("profiler");
 	#pragma omp parallel for
 	for (int p = 0; p < pixel_count; p++)
@@ -73,12 +74,20 @@ void c_raytracer::update()
 		vec3 color = scene->raycast({ eye,target - eye });
 		m_screen.set(p, color);
 
-		if(p%debug_step == 0)
-			debug_print("Throwing Rays", p, pixel_count);
+		{
+			if (p-debug_step >= last)
+			{
+				last = p;
+				debug_print("Throwing Rays", p, pixel_count);
+				m_screen.render();
+			}
+
+		}
 	}
 	END_FRAME();
 	debug_print("Throwing Rays", pixel_count, pixel_count);
 	endline_debug_print();
+	m_screen.render();
 
 	// Output profiler data
 	size_t cc = GET_PROFILER_DATA()[0]->m_time;
@@ -91,6 +100,8 @@ void c_raytracer::update()
 
 void c_raytracer::shutdown()
 {
+	m_screen.destroy();
+
 	debug_print("Storing Image");
 	std::string name = scene->m_scene_path;
 	m_screen.output(name.substr(0, name.find_last_of('.'))+".png");

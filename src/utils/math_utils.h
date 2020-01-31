@@ -6,19 +6,21 @@ File Name:	math_utils.h
 Purpose: Some mathematical utils
 Author: Gabriel Mañeru - gabriel.m
 - End Header --------------------------------------------------------*/
-#pragma once
-
+#ifndef min
 template <typename T>
 T min(const T& a, const T& b)
 {
 	return (a < b) ? a : b;
 }
+#endif // !min
 
+#ifndef max
 template <typename T>
 T max(const T& a, const T& b)
 {
 	return (a > b) ? a : b;
 }
+#endif // !max
 
 template <typename T>
 void swap(const T& a, const T& b)

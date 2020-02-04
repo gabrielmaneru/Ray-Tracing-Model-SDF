@@ -4,104 +4,84 @@
 #include <utils/math_utils.h>
 #include <iostream>
 #include <iomanip>
-#include <omp.h>
-#include <mpi.h>
 
 c_raytracer* raytracer = new c_raytracer;
 
-void debug_print(const char * title, int v=0, int v_max=0)
+void c_raytracer::thread_job(int id, thread_data data)
 {
-	if (v_max > 1)
+	for (int p = data.start; p < data.end; p++)
 	{
-		std::cout << '\r'
-			<< title << ": "
-			<< std::setw(std::to_string(v_max).size() + 1)
-			<< std::to_string(v)
-			<< '/'
-			<< std::to_string(v_max)
-			<< " - "
-			<< std::fixed << std::setprecision(2)
-			<< std::setw(6)
-			<< coef(0, v_max, v)*100.f
-			<< "%  "
-			<< std::flush;
+		int x = p % data.width, y = p / data.width;
+		vec3 target = data.p_0 + static_cast<float>(x)*data.u_scr - static_cast<float>(y)*data.v_scr;
+		vec3 color = scene->raycast({ data.eye,target - data.eye });
+		raytracer->m_screen.set(p, color);
 	}
-	else
-	{
-		std::cout << '\r'
-			<< title << "...  "
-			<< std::flush;
-	}
-}
-void endline_debug_print()
-{
-	std::cout << "v/" << std::endl;
+	raytracer->m_thread_bb[id] = true;
 }
 
 bool c_raytracer::init(size_t width, size_t height)
 {
-	debug_print("Allocating Screen");
+	std::cout << "\r" << "Allocating Screen..." << std::flush;
 	m_screen.setup(width, height);
-	endline_debug_print();
+	std::cout << "v/" << std::endl;
 
-	int machineCount;
-	int rank;
-	MPI_Comm_size(MPI_COMM_WORLD, &machineCount);
+	// Prepare data for threads
+	thread_data data;
+	data.width = static_cast<int>(width);
+	data.height = static_cast<int>(height);
 
+	// Precompute camera data
+	camera * pcam = scene->m_camera;
+	float half_width = static_cast<float>(width)*0.5f;
+	float half_height = static_cast<float>(height)*0.5f;
+	data.eye = pcam->get_eye();
+	data.u_scr = pcam->m_u_vector / half_width;
+	data.v_scr = pcam->m_v_vector / half_height;
+	data.p_0 = pcam->m_origin + (0.5f - half_width)*data.u_scr - (0.5f - half_height)*data.v_scr;
+
+	// Distribute screen to threads
+	int thread_count = static_cast<int>(std::thread::hardware_concurrency())-1;
+	int total_count = static_cast<int>(width*height);
+	for (int i = 0; i < thread_count; i++)
+	{
+		thread_data local_data{ data };
+		local_data.start = total_count / thread_count * i;
+		local_data.end = total_count / thread_count * (i+1);
+		m_threads.emplace_back(std::thread{ thread_job, i, local_data });
+		m_thread_bb.push_back(false);
+	}
 	return true;
 }
 
 void c_raytracer::update()
 {
-	// Get screen resolution
-	int width, height;
-	m_screen.get_resolution(width, height);
-	int pixel_count = static_cast<int>(width*height);
-
-	// Precompute camera data
-	camera * pcam = scene->m_camera;
-	vec3 eye = pcam->get_eye();
-	float half_width = static_cast<float>(width)*0.5f;
-	float half_height = static_cast<float>(height)*0.5f;
-	vec3 u_scr = pcam->m_u_vector / half_width;
-	vec3 v_scr = pcam->m_v_vector / half_height;
-	vec3 p_0 = pcam->m_origin + (0.5f - half_width)*u_scr - (0.5f - half_height)*v_scr;
-
-	// Start loop
-	int debug_step = max(pixel_count/11, 1);
-	int last = -1;
-	#pragma omp parallel for
-	for (int p = 0; p < pixel_count; p++)
-	{
-		int x = p % width, y = p / width;
-		vec3 target = p_0 + static_cast<float>(x)*u_scr - static_cast<float>(y)*v_scr;
-		vec3 color = scene->raycast({ eye,target - eye });
-		m_screen.set(p, color);
-
-		{
-			if (p-debug_step >= last)
-			{
-				last = p;
-				debug_print("Throwing Rays", p, pixel_count);
-				m_screen.render();
-			}
-
-		}
-	}
-	debug_print("Throwing Rays", pixel_count, pixel_count);
-	endline_debug_print();
+	// Render texture
 	m_screen.render();
 
+	// Check if threads have finished
+	bool finished = true;
+	for (size_t i = 0; i < m_threads.size(); i++)
+	{
+		if (m_thread_bb[i])
+		{
+			if(m_threads[i].joinable())
+				m_threads[i].join();
+		}
+		else
+			finished = false;
+	}
+
 	// End Program
-	session::end = true;
+	if(finished)
+		session::end = true;
 }
 
 void c_raytracer::shutdown()
 {
 	m_screen.destroy();
 
-	debug_print("Storing Image");
 	std::string name = scene->m_scene_path;
+	std::cout << "\r" << "Storing Image..." << std::flush;
 	m_screen.output(name.substr(0, name.find_last_of('.'))+".png");
-	endline_debug_print();
+	std::cout << "v/" << std::endl;
 }

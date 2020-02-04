@@ -8,21 +8,21 @@ void load_shaders()
 	const char *vertexShaderSource =
 	"#version 330 core\n"
 	"layout (location = 0) in vec3 aPos;\n"
-	"out vec3 vPos;\n"
+	"out vec2 uv;\n"
 	"void main()\n"
 	"{\n"
-	"   vPos=aPos;\n"
+	"   uv=vec2(aPos.x,-aPos.y);\n"
 	"   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
 	"}\0"
 	;
 	const char *fragmentShaderSource =
 	"#version 330 core\n"
-	"in vec3 vPos;\n"
+	"in vec2 uv;\n"
 	"out vec4 FragColor;\n"
 	"uniform sampler2D textsamp;\n"
 	"void main()\n"
 	"{\n"
-	"   FragColor = vec4(texture(textsamp,vPos.xy*0.5+0.5).rgb, 1.0f);\n"
+	"   FragColor = vec4(texture(textsamp,uv.xy*0.5+0.5).rgb, 1.0f);\n"
 	"}\n\0"
 	;
 
@@ -93,7 +93,7 @@ void screen::setup(size_t width, size_t height)
 
 	if (glfwInit())
 	{
-		m_window = glfwCreateWindow((int)width, (int)height, "Raytracer", nullptr, nullptr);
+		m_window = glfwCreateWindow(min((int)width,1920), min((int)height,1080), "Raytracer", nullptr, nullptr);
 		if (m_window != nullptr)
 		{
 			glfwMakeContextCurrent(m_window);

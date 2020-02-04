@@ -2,10 +2,10 @@
 #include <core/session.h>
 #include <scene/scene.h>
 #include <utils/math_utils.h>
-#include <utils/profiler.h>
 #include <iostream>
 #include <iomanip>
 #include <omp.h>
+#include <mpi.h>
 
 c_raytracer* raytracer = new c_raytracer;
 
@@ -43,6 +43,11 @@ bool c_raytracer::init(size_t width, size_t height)
 	debug_print("Allocating Screen");
 	m_screen.setup(width, height);
 	endline_debug_print();
+
+	int machineCount;
+	int rank;
+	MPI_Comm_size(MPI_COMM_WORLD, &machineCount);
+
 	return true;
 }
 
@@ -65,7 +70,6 @@ void c_raytracer::update()
 	// Start loop
 	int debug_step = max(pixel_count/11, 1);
 	int last = -1;
-	START_FRAME("profiler");
 	#pragma omp parallel for
 	for (int p = 0; p < pixel_count; p++)
 	{
@@ -84,15 +88,9 @@ void c_raytracer::update()
 
 		}
 	}
-	END_FRAME();
 	debug_print("Throwing Rays", pixel_count, pixel_count);
 	endline_debug_print();
 	m_screen.render();
-
-	// Output profiler data
-	size_t cc = GET_PROFILER_DATA()[0]->m_time;
-	debug_print(("Clock cycles " + std::to_string(cc) + " (Order " + std::to_string(std::to_string(cc).size()) + ")").c_str());
-	endline_debug_print();
 
 	// End Program
 	session::end = true;

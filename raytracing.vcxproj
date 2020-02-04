@@ -153,7 +153,6 @@
     <ClCompile Include="src\scene\scene.cpp" />
     <ClCompile Include="src\scene\sphere.cpp" />
     <ClCompile Include="src\utils\math_utils.cpp" />
-    <ClCompile Include="src\utils\profiler.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="extern\include\GLFW\glfw3.h" />
@@ -413,7 +412,6 @@
     <ClInclude Include="src\scene\sphere.h" />
     <ClInclude Include="src\utils\map2d.h" />
     <ClInclude Include="src\utils\math_utils.h" />
-    <ClInclude Include="src\utils\profiler.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="extern\include\glm\detail\func_common.inl" />

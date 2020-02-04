@@ -16,7 +16,8 @@ void c_raytracer::thread_job(int id, thread_data data)
 		vec3 color = scene->raycast({ data.eye,target - data.eye });
 		raytracer->m_screen.set(p, color);
 	}
-	raytracer->m_thread_bb[id] = true;
+	if (id >= 0)
+		raytracer->m_thread_bb[id] = true;
 }
 
 bool c_raytracer::init(size_t width, size_t height)
@@ -38,25 +39,32 @@ bool c_raytracer::init(size_t width, size_t height)
 	data.u_scr = pcam->m_u_vector / half_width;
 	data.v_scr = pcam->m_v_vector / half_height;
 	data.p_0 = pcam->m_origin + (0.5f - half_width)*data.u_scr - (0.5f - half_height)*data.v_scr;
+	int total_count = static_cast<int>(width*height);
 
 	// Distribute screen to threads
-	int thread_count = static_cast<int>(std::thread::hardware_concurrency())-1;
-	int total_count = static_cast<int>(width*height);
-	for (int i = 0; i < thread_count; i++)
+	if (m_parallel)
 	{
-		thread_data local_data{ data };
-		local_data.start = total_count / thread_count * i;
-		local_data.end = total_count / thread_count * (i+1);
-		m_threads.emplace_back(std::thread{ thread_job, i, local_data });
-		m_thread_bb.push_back(false);
+		int thread_count = static_cast<int>(std::thread::hardware_concurrency())-1;
+		for (int i = 0; i < thread_count; i++)
+		{
+			thread_data local_data{ data };
+			local_data.start = total_count / thread_count * i;
+			local_data.end = total_count / thread_count * (i+1);
+			m_threads.emplace_back(std::thread{ thread_job, i, local_data });
+			m_thread_bb.push_back(false);
+		}
+	}
+	else
+	{
+		data.start = 0;
+		data.end = total_count;
+		thread_job(-1, data);
 	}
 	return true;
 }
 
 void c_raytracer::update()
 {
-	// Render texture
-	m_screen.render();
 
 	// Check if threads have finished
 	bool finished = true;
@@ -70,6 +78,9 @@ void c_raytracer::update()
 		else
 			finished = false;
 	}
+
+	// Render texture
+	m_screen.render();
 
 	// End Program
 	if(finished)

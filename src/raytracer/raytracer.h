@@ -13,9 +13,11 @@ struct thread_data
 
 class c_raytracer
 {
+	bool m_parallel{ true };
 	std::vector<std::thread> m_threads;
 	std::vector<bool> m_thread_bb;
 	static void thread_job(int id, thread_data data);
+
 public:
 	bool init(size_t width, size_t height);
 	void update();

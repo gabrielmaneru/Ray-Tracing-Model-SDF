@@ -20,5 +20,5 @@ struct screen : private map2d<vec3>
 
 	GLFWwindow * m_window{ nullptr };
 	GLuint m_texture{ 0u };
-	vec3 m_clear_color{0.0f, 0.0f, 0.0f};
+	vec3 m_clear_color{0.5f, 0.0f, 0.5f};
 };

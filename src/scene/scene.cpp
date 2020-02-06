@@ -56,7 +56,7 @@ vec3 c_scene::compute_phong_lightning(vec3 pi, vec3 n, material mat)const
 		if (d_n_l < 0.0f)
 			continue;
 
-		float shad = compute_shadow_factor(pi + 0.01f*n, l);
+		float shad = compute_shadow_factor(pi + m_E*n, l);
 		if (shad == 0.0f)
 			continue;
 
@@ -77,17 +77,30 @@ vec3 c_scene::compute_phong_lightning(vec3 pi, vec3 n, material mat)const
 
 float c_scene::compute_shadow_factor(vec3 pi, const light & l) const
 {
-	ray r{ pi, l.m_position - pi };
-	ray_hit hit;
-	for (auto& s : m_shapes)
+	int count = 0;
+	for (int i = 0; i < m_S; i++)
 	{
-		ray_hit local = s->ray_intersect(r);
-		if (local.m_hit && local.m_time < hit.m_time)
-			hit = local;
+		vec3 offset{ 0.0f };
+		if (i != 0)
+		{
+			offset.x = rand() / (float)RAND_MAX;
+			offset.y = rand() / (float)RAND_MAX;
+			offset.z = rand() / (float)RAND_MAX;
+			offset = glm::normalize(offset - 0.5f) * l.m_radius;
+		}
+
+		ray r{ pi, l.m_position + offset - pi };
+		ray_hit hit;
+		for (auto& s : m_shapes)
+		{
+			ray_hit local = s->ray_intersect(r);
+			if (local.m_hit && local.m_time < hit.m_time)
+				hit = local;
+		}
+		if (!hit.m_hit)
+			++count;
 	}
-	if (hit.m_hit)
-		return 0.0f;
-	return 1.0f;
+	return count / (float)m_S;
 }
 
 bool c_scene::init(std::string scene_path)

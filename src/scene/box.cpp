@@ -1,5 +1,14 @@
+/* Start Header -------------------------------------------------------
+Copyright (C) 2019 DigiPen Institute of Technology.
+Reproduction or disclosure of this file or its contents without the prior written consent of
+DigiPen Institute of Technology is prohibited.
+File Name:	box.cpp
+Purpose: Box shape
+Author: Gabriel Mañeru - gabriel.m
+- End Header --------------------------------------------------------*/
 #include "box.h"
 
+// Contructor
 box::box(vec3 corner, vec3 length, vec3 width, vec3 height, material mat)
 	: shape(mat)
 {
@@ -27,11 +36,14 @@ ray_hit box::ray_intersect(const ray & r) const
 	for (size_t i = 0; i < 6; i++)
 	{
 		float d_dir_nor = glm::dot(r.m_direction, m_normals[i]);
+
+		// If parallel
 		if (d_dir_nor == 0.0f)
 			return {};
 
 		float ti = -glm::dot(r.m_origin - m_points[i], m_normals[i]) / d_dir_nor;
 
+		// If facing the face
 		if (d_dir_nor < 0.0f)
 		{
 			if (ti > enter.m_time)
@@ -41,6 +53,7 @@ ray_hit box::ray_intersect(const ray & r) const
 				enter.m_normal = m_normals[i];
 			}
 		}
+		// If exiting the face
 		else
 		{
 			if(ti < exit.m_time)
@@ -52,6 +65,7 @@ ray_hit box::ray_intersect(const ray & r) const
 		}
 	}
 
+	// If ray is reversed
 	if (exit.m_time < enter.m_time)
 		return{};
 

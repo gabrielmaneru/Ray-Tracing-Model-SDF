@@ -1,5 +1,14 @@
+/* Start Header -------------------------------------------------------
+Copyright (C) 2019 DigiPen Institute of Technology.
+Reproduction or disclosure of this file or its contents without the prior written consent of
+DigiPen Institute of Technology is prohibited.
+File Name:	sphere.cpp
+Purpose: Sphere shape
+Author: Gabriel Mañeru - gabriel.m
+- End Header --------------------------------------------------------*/
 #include "sphere.h"
 
+// Constructor
 sphere::sphere(vec3 center, float radius, material mat)
 	: shape(mat), m_center(center), m_radius(radius) {}
 
@@ -10,8 +19,12 @@ ray_hit sphere::ray_intersect(const ray & r) const
 	float b = 2.0f * glm::dot(ray_sphere, r.m_direction);
 	float c = glm::dot(ray_sphere, ray_sphere) - m_radius*m_radius;
 	float disc = b * b - 4 * a*c;
+
+	// No intersection
 	if (disc < 0.0f)
 		return {};
+
+	// Intersection found
 	else
 	{
 		ray_hit hit{ true };

@@ -13,6 +13,7 @@ Author: Gabriel Mañeru - gabriel.m
 
 bool session::end{false};
 
+// Initialize singletons
 bool session::init(int width, int height, std::string scene_path)
 {
 	if (!scene->init(scene_path)) return false;
@@ -20,6 +21,7 @@ bool session::init(int width, int height, std::string scene_path)
 	return true;
 }
 
+// Do render loop
 void session::update()
 {
 	do
@@ -28,6 +30,7 @@ void session::update()
 	} while (!end);
 }
 
+// Store & Save data
 void session::shutdown()
 {
 	raytracer->shutdown();

@@ -1,8 +1,17 @@
+/* Start Header -------------------------------------------------------
+Copyright (C) 2019 DigiPen Institute of Technology.
+Reproduction or disclosure of this file or its contents without the prior written consent of
+DigiPen Institute of Technology is prohibited.
+File Name:	screen.cpp
+Purpose: Screen implementation
+Author: Gabriel Mañeru - gabriel.m
+- End Header --------------------------------------------------------*/
 #include "screen.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image/stb_image_write.h>
 #include <iostream>
 
+// Create, load & bind simple shaders and quad
 void load_shaders()
 {
 	const char *vertexShaderSource =
@@ -88,9 +97,11 @@ void load_quad()
 
 void screen::setup(size_t width, size_t height)
 {
+	// Allocate screen
 	map2d<vec3>::setup(width, height);
 	clear();
 
+	// Initialize window
 	if (glfwInit())
 	{
 		m_window = glfwCreateWindow(min((int)width,1920), min((int)height,1080), "Raytracer", nullptr, nullptr);
@@ -114,7 +125,7 @@ void screen::setup(size_t width, size_t height)
 
 				return;
 			}
-			destroy();
+			destroy_window();
 		}
 	}
 	glfwTerminate();
@@ -124,21 +135,23 @@ void screen::render()
 {
 	if (m_window != nullptr)
 	{
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+		// Load Texture
 		glBindTexture(GL_TEXTURE_2D, m_texture);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, (GLsizei)m_width, (GLsizei)m_height, 0, GL_RGB, GL_FLOAT, m_values.data());
 
+		// Render quad
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
-		
 		glfwSwapBuffers(m_window);
+
+		// Check if should close the window
 		glfwPollEvents();
 		if (glfwWindowShouldClose(m_window))
-			destroy();
+			destroy_window();
 	}
 }
 
-void screen::destroy()
+void screen::destroy_window()
 {
 	if (m_window != nullptr)
 	{
@@ -164,6 +177,7 @@ void screen::set(int idx, vec3 value)
 
 void screen::output(const std::string& path)const
 {
+	// Store screen onto a png
 	std::vector<char> data;
 	data.resize(m_values.size() * 3);
 	for (size_t i = 0; i < m_values.size(); i++)

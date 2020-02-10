@@ -10,7 +10,7 @@ struct screen : private map2d<vec3>
 {
 	void setup(size_t width, size_t height)override;
 	void render();
-	void destroy();
+	void destroy_window();
 	vec3 get(size_t x, size_t y)const;
 	void set(size_t x, size_t y, vec3 value);
 	void set(int idx, vec3 value);

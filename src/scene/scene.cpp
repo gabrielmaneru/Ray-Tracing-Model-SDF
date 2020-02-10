@@ -47,32 +47,26 @@ vec3 c_scene::compute_phong_lightning(vec3 pi, vec3 n, material mat)const
 {
 	vec3 v_vec = glm::normalize(m_camera->get_eye() - pi);
 
+	vec3 I_ambi{ m_ambient*mat.m_diffuse };
 	vec3 I_diff{ 0.0f };
 	vec3 I_spec{ 0.0f };
 	for (const light& l : m_lights)
 	{
+		float shad = compute_shadow_factor(pi + m_E * n, l);
+
 		vec3 l_vec = glm::normalize(l.m_position - pi);
 		float d_n_l = glm::dot(n, l_vec);
-		if (d_n_l < 0.0f)
-			continue;
-
-		float shad = compute_shadow_factor(pi + m_E*n, l);
-		if (shad == 0.0f)
-			continue;
-
-		I_diff += shad*glm::max(d_n_l, 0.0f) * l.m_intensity;
+		I_diff += shad *glm::max(d_n_l, 0.0f) * l.m_intensity;
 
 		vec3 r_vec = glm::reflect(l_vec, n);
 		float d_r_v = glm::dot(r_vec, v_vec);
-		if (d_r_v < 0.0f)
-			continue;
-
 		I_spec += shad*glm::max(glm::pow(d_r_v, mat.m_spec_exp), 0.0f) * l.m_intensity;
 	}
+
 	I_diff *= mat.m_diffuse;
 	I_spec *= mat.m_spec_refl;
 
-	return glm::clamp(m_ambient + I_diff + I_spec, 0.0f, 1.0f);
+	return glm::clamp(I_ambi + I_diff + I_spec , 0.0f, 1.0f);
 }
 
 float c_scene::compute_shadow_factor(vec3 pi, const light & l) const
@@ -86,7 +80,7 @@ float c_scene::compute_shadow_factor(vec3 pi, const light & l) const
 			offset.x = rand() / (float)RAND_MAX;
 			offset.y = rand() / (float)RAND_MAX;
 			offset.z = rand() / (float)RAND_MAX;
-			offset = glm::normalize(offset - 0.5f) * l.m_radius;
+			offset = (offset * 2.0f - 1.f) * l.m_radius;
 		}
 
 		ray r{ pi, l.m_position + offset - pi };

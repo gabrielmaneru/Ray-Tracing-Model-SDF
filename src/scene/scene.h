@@ -20,8 +20,8 @@ public:
 	std::vector<light> m_lights;
 	camera* m_camera{ nullptr };
 	vec3 m_ambient;
-	float m_E;
-	int m_S;
+	float m_epsilon;
+	int m_samples;
 
 };
 extern c_scene* scene;

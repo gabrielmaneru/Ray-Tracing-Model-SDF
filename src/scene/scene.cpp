@@ -47,18 +47,17 @@ vec3 c_scene::compute_phong_lightning(vec3 pi, vec3 n, material mat)const
 {
 	vec3 v_vec = glm::normalize(m_camera->get_eye() - pi);
 
-	vec3 I_ambi{ m_ambient*mat.m_diffuse };
-	vec3 I_diff{ 0.0f };
+	vec3 I_diff{ m_ambient };
 	vec3 I_spec{ 0.0f };
 	for (const light& l : m_lights)
 	{
-		float shad = compute_shadow_factor(pi + m_E * n, l);
+		float shad = compute_shadow_factor(pi + m_epsilon * n, l);
 
 		vec3 l_vec = glm::normalize(l.m_position - pi);
 		float d_n_l = glm::dot(n, l_vec);
 		I_diff += shad *glm::max(d_n_l, 0.0f) * l.m_intensity;
 
-		vec3 r_vec = glm::reflect(l_vec, n);
+		vec3 r_vec = glm::reflect(-l_vec, n);
 		float d_r_v = glm::dot(r_vec, v_vec);
 		I_spec += shad*glm::max(glm::pow(d_r_v, mat.m_spec_exp), 0.0f) * l.m_intensity;
 	}
@@ -66,13 +65,13 @@ vec3 c_scene::compute_phong_lightning(vec3 pi, vec3 n, material mat)const
 	I_diff *= mat.m_diffuse;
 	I_spec *= mat.m_spec_refl;
 
-	return glm::clamp(I_ambi + I_diff + I_spec , 0.0f, 1.0f);
+	return glm::clamp(I_diff + I_spec , 0.0f, 1.0f);
 }
 
 float c_scene::compute_shadow_factor(vec3 pi, const light & l) const
 {
 	int count = 0;
-	for (int i = 0; i < m_S; i++)
+	for (int i = 0; i < m_samples; i++)
 	{
 		vec3 offset{ 0.0f };
 		if (i != 0)
@@ -94,7 +93,7 @@ float c_scene::compute_shadow_factor(vec3 pi, const light & l) const
 		if (!hit.m_hit)
 			++count;
 	}
-	return count / (float)m_S;
+	return count / (float)m_samples;
 }
 
 bool c_scene::init(std::string scene_path)
@@ -166,15 +165,15 @@ bool c_scene::init(std::string scene_path)
 			if (line.size() == 0U || line[0] == '#')
 				continue;
 
-			if (line[0] == 'E')
+			if (line.substr(0, 7) == "EPSILON")
 			{
-				line = line.substr(2);
-				m_E = parse_flt(line);
+				line = line.substr(8);
+				m_epsilon = parse_flt(line);
 			}
-			else if (line[0] == 'S')
+			else if (line.substr(0, 7) == "SAMPLES")
 			{
-				line = line.substr(2);
-				m_S = (int)parse_flt(line);
+				line = line.substr(8);
+				m_samples = (int)parse_flt(line);
 			}
 		}
 	}

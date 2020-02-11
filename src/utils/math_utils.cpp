@@ -7,6 +7,23 @@ Purpose: Some mathematical utils
 Author: Gabriel Mañeru - gabriel.m
 - End Header --------------------------------------------------------*/
 #include "math_utils.h"
+int round_float(const float & value)
+{
+	return static_cast<int>(value + 0.5f);
+}
+int floor_float(const float & value)
+{
+	return static_cast<int>(value);
+}
+#include <cstdlib>
+#include <ctime>
+float random_float(float min, float max)
+{
+	static bool init{ false };
+	if(!init)
+		srand((unsigned int)time(NULL)),init = true;
+	return map(rand(), 0, RAND_MAX, min, max);
+}
 quat lerp(const quat& min, const quat& max, const float& coef)
 {
 	// Try Slerp
@@ -32,22 +49,15 @@ quat lerp(const quat& min, const quat& max, const float& coef)
 	// do NLerp
 	return glm::normalize(min + (max - min) * coef);
 }
-int round_float(const float & value)
+vec3 rand_ball(float rad)
 {
-	return static_cast<int>(value + 0.5f);
-}
-
-int floor_float(const float & value)
-{
-	return static_cast<int>(value);
-}
-
-#include <cstdlib>
-#include <ctime>
-float random_float(float min, float max)
-{
-	static bool init{ false };
-	if(!init)
-		srand((unsigned int)time(NULL)),init = true;
-	return map(rand(), 0, RAND_MAX, min, max);
+	vec3 rand_vec{
+		random_float(-1.0f, 1.0f),
+		random_float(-1.0f, 1.0f),
+		random_float(-1.0f, 1.0f)
+	};
+	rand_vec = glm::normalize(rand_vec);
+	float rand_rad = random_float(0.0f, 1.0f);
+	rand_rad = std::cbrt(rand_rad);
+	return rand_vec * rand_rad * rad;
 }

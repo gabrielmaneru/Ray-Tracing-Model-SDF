@@ -52,3 +52,4 @@ float random_float(float min, float max);
 
 #include <glm/glm.h>
 quat lerp(const quat& min, const quat& max, const float& coef);
+vec3 rand_ball(float rad);

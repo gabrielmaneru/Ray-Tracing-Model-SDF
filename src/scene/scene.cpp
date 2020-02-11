@@ -11,6 +11,7 @@ Author: Gabriel Mañeru - gabriel.m
 #include "box.h"
 #include <string>
 #include <fstream>
+#include <utils/math_utils.h>
 
 c_scene* scene = new c_scene;
 
@@ -94,12 +95,7 @@ float c_scene::compute_shadow_factor(vec3 pi, const light & l) const
 		// Compute random ball vector
 		vec3 offset{ 0.0f };
 		if (i != 0)
-		{
-			offset.x = rand() / (float)RAND_MAX;
-			offset.y = rand() / (float)RAND_MAX;
-			offset.z = rand() / (float)RAND_MAX;
-			offset = (offset * 2.0f - 1.f) * l.m_radius;
-		}
+			offset = rand_ball(l.m_radius);
 
 		// Raytrace ray into the light bulb
 		ray r{ pi, l.m_position + offset - pi };

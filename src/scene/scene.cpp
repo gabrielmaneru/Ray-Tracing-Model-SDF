@@ -9,6 +9,8 @@ Author: Gabriel Mañeru - gabriel.m
 #include "scene.h"
 #include "sphere.h"
 #include "box.h"
+#include "polygon.h"
+#include "ellipsoid.h"
 #include <string>
 #include <fstream>
 #include <utils/math_utils.h>
@@ -49,7 +51,11 @@ material parse_mat(std::string& line)
 	vec3 dif = parse_vec3(line);
 	float refl = parse_flt(line);
 	float exp = parse_flt(line);
-	return{dif,refl,exp};
+	vec3 att = parse_vec3(line);
+	float elec = parse_flt(line);
+	float mag = parse_flt(line);
+	float rou = parse_flt(line);
+	return{ dif, refl, exp, att, elec, mag, rou };
 }
 
 vec3 c_scene::compute_phong_lightning(vec3 pi, vec3 n, material mat)const
@@ -73,12 +79,12 @@ vec3 c_scene::compute_phong_lightning(vec3 pi, vec3 n, material mat)const
 
 		// Add Intensities
 		I_diff += shad * glm::max(glm::dot(n, l_vec), 0.0f) * l.m_intensity;
-		I_spec += shad * glm::max(glm::pow(glm::dot(r_vec, v_vec), mat.m_spec_exp), 0.0f) * l.m_intensity;
+		I_spec += shad * glm::max(glm::pow(glm::dot(r_vec, v_vec), mat.m_specular_exponent), 0.0f) * l.m_intensity;
 	}
 
 	// Apply material colors
-	I_diff *= mat.m_diffuse;
-	I_spec *= mat.m_spec_refl;
+	I_diff *= mat.m_diffuse_color;
+	I_spec *= mat.m_specular_reflection;
 
 	// Clamp the color
 	return glm::clamp(I_diff + I_spec , 0.0f, 1.0f);
@@ -133,7 +139,7 @@ bool c_scene::init(std::string scene_path)
 			if (line.size() == 0U || line[0] == '#')
 				continue;
 
-			if (line.substr(0, 6) == "SPHERE")
+			if (line.substr(0, 7) == "SPHERE ")
 			{
 				vec3 center = parse_vec3(line);
 				float radius = parse_flt(line);
@@ -143,7 +149,7 @@ bool c_scene::init(std::string scene_path)
 
 				m_shapes.push_back(new sphere{ center, radius, mat });
 			}
-			else if (line.substr(0, 3) == "BOX")
+			else if (line.substr(0, 4) == "BOX ")
 			{
 				vec3 corner = parse_vec3(line);
 
@@ -157,16 +163,51 @@ bool c_scene::init(std::string scene_path)
 
 				m_shapes.push_back(new box{ corner, length, width, height, mat });
 			}
-			else if (line.substr(0, 5) == "LIGHT")
+			else if (line.substr(0, 8) == "POLYGON ")
+			{
+				line = line.substr(8);
+				std::vector<vec3> vertices;
+				int count = static_cast<int>(parse_flt(line));
+				for (int i = 0; i < count; ++i)
+					vertices.push_back(parse_vec3(line));
+
+				std::getline(file, line);
+				material mat = parse_mat(line);
+
+				m_shapes.push_back(new polygon{ vertices, mat });
+			}
+			else if (line.substr(0, 10) == "ELLIPSOID ")
+			{
+				vec3 center = parse_vec3(line);
+				vec3 u = parse_vec3(line);
+				vec3 v = parse_vec3(line);
+				vec3 w = parse_vec3(line);
+				std::vector<vec3> vertices;
+				int count = static_cast<int>(parse_flt(line));
+				for (int i = 0; i < count; ++i)
+					vertices.push_back(parse_vec3(line));
+
+				std::getline(file, line);
+				material mat = parse_mat(line);
+
+				m_shapes.push_back(new ellipsoid{ center, u, v, w, mat });
+			}
+			else if (line.substr(0, 6) == "LIGHT ")
 			{
 				vec3 pos = parse_vec3(line);
 				vec3 intensity = parse_vec3(line);
 				float radius = parse_flt(line);
 				m_lights.push_back(light{ pos, intensity, radius });
 			}
-			else if (line.substr(0, 7) == "AMBIENT")
+			else if (line.substr(0, 8) == "AMBIENT ")
 				m_ambient = parse_vec3(line);
-			else if (line.substr(0, 6) == "CAMERA")
+			else if (line.substr(0, 4) == "AIR ")
+			{
+				m_air.m_electric_permittivity = parse_flt(line);
+				m_air.m_magnetic_permeability = parse_flt(line);
+				m_air.m_attenuation = parse_vec3(line);
+			}
+			else if (line.substr(0, 7) == "CAMERA ")
 			{
 				vec3 origin = parse_vec3(line);
 				vec3 u_vector = parse_vec3(line);

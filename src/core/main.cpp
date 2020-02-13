@@ -17,21 +17,17 @@ int main(int argc, char *argv[])
 {
 	// Default values
 	int res_x = 500, res_y = 500;
-	std::string scene = "SampleScene01.txt";
+	std::string scene = "CornellBox.txt";
 
 	// Retrieve arguments
 	if (argc == 1);
-	else if (argc == 3)
+	else if (argc >= 3)
 	{
 		res_x = std::atoi(argv[1]);
 		res_y = std::atoi(argv[2]);
 	}
 	else if (argc == 4)
-	{
-		res_x = std::atoi(argv[1]);
-		res_y = std::atoi(argv[2]);
 		scene = argv[3];
-	}
 	else
 	{
 		std::cout << "Invalid Command-Line Arguments, use <width> <height> <scene.txt>" << std::endl;

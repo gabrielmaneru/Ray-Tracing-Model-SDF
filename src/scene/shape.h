@@ -4,9 +4,13 @@
 
 struct material
 {
-	vec3 m_diffuse;
-	float m_spec_refl;
-	float m_spec_exp;
+	vec3 m_diffuse_color;
+	float m_specular_reflection;
+	float m_specular_exponent;
+	vec3 m_attenuation;
+	float m_electric_permittivity;
+	float m_magnetic_permeability;
+	float m_roughness;
 };
 struct ray_hit
 {

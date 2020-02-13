@@ -15,13 +15,21 @@ public:
 	vec3 raycast(const ray& r)const;
 	void shutdown();
 
-	std::string m_scene_path;
+
+	// Scene Properties
 	std::vector<shape*> m_shapes;
 	std::vector<light> m_lights;
+	std::string m_scene_path;
 	camera* m_camera{ nullptr };
 	vec3 m_ambient;
+	struct{
+		float m_electric_permittivity{ 1.f };
+		float m_magnetic_permeability{ 1.f };
+		vec3 m_attenuation{ 1.f };
+	}m_air;
+
+	// Scene Config
 	float m_epsilon;
 	int m_samples;
-
 };
 extern c_scene* scene;

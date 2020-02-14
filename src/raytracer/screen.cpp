@@ -172,7 +172,8 @@ void screen::set(size_t x, size_t y, vec3 value)
 
 void screen::set(int idx, vec3 value)
 {
-	m_values[idx] = value;
+	if(idx < (int)m_values.size())
+		m_values[idx] = value;
 }
 
 void screen::output(const std::string& path)const

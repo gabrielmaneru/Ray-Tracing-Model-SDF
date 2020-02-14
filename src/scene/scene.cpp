@@ -58,45 +58,13 @@ material parse_mat(std::string& line)
 	return{ dif, refl, exp, att, elec, mag, rou };
 }
 
-vec3 c_scene::compute_phong_lightning(vec3 pi, vec3 n, material mat)const
-{
-	// View vec
-	vec3 v_vec = glm::normalize(m_camera->get_eye() - pi);
-
-	// Initialize Intensities
-	vec3 I_diff{ m_ambient };
-	vec3 I_spec{ 0.0f };
-
-	// Loop each light
-	for (const light& l : m_lights)
-	{
-		// Compute shadow factor
-		float shad = compute_shadow_factor(pi + m_epsilon * n, l);
-
-		// Light vector
-		vec3 l_vec = glm::normalize(l.m_position - pi);
-		vec3 r_vec = glm::reflect(-l_vec, n);
-
-		// Add Intensities
-		I_diff += shad * glm::max(glm::dot(n, l_vec), 0.0f) * l.m_intensity;
-		I_spec += shad * glm::max(glm::pow(glm::dot(r_vec, v_vec), mat.m_specular_exponent), 0.0f) * l.m_intensity;
-	}
-
-	// Apply material colors
-	I_diff *= mat.m_diffuse_color;
-	I_spec *= mat.m_specular_reflection;
-
-	// Clamp the color
-	return glm::clamp(I_diff + I_spec , 0.0f, 1.0f);
-}
-
 float c_scene::compute_shadow_factor(vec3 pi, const light & l) const
 {
 	// Count occluding rays
 	int count = 0;
 
 	// For each sample
-	for (int i = 0; i < m_samples; i++)
+	for (int i = 0; i < m_s_samples; i++)
 	{
 		// Compute random ball vector
 		vec3 offset{ 0.0f };
@@ -119,7 +87,72 @@ float c_scene::compute_shadow_factor(vec3 pi, const light & l) const
 	}
 
 	// Compute shadow factor
-	return count / (float)m_samples;
+	return count / (float)m_s_samples;
+}
+vec3 c_scene::compute_reflect_value(const ray & refl, float roughness) const
+{
+	// No Roughness
+	if (roughness == 0.0f)
+		return raycast(refl);
+
+	vec3 value{0.0f};
+	for (int i = 0; i < m_r_samples; i++)
+	{
+		// Compute random ball vector
+		vec3 offset{ 0.0f };
+		if (i != 0)
+			offset = rand_ball(roughness);
+
+		ray new_refl{ refl };
+		new_refl.m_direction += offset;
+		value += raycast(new_refl);
+	}
+
+	return value / (float)m_r_samples;
+}
+vec3 c_scene::compute_phong_lightning(const ray & r, const ray_hit & hit, material mat) const
+{
+	// PI Extruded
+	vec3 pi_extructed{ hit.m_point + m_epsilon * hit.m_normal };
+
+	// View vec
+	vec3 v_vec = glm::normalize(m_camera->get_eye() - hit.m_point);
+
+	// Initialize Intensities
+	vec3 I_diff{ m_ambient };
+	vec3 I_spec{ 0.0f };
+
+	// Loop each light
+	for (const light& l : m_lights)
+	{
+		// Compute shadow factor
+		float shad = compute_shadow_factor(pi_extructed, l);
+
+		// Light vector
+		vec3 l_vec = glm::normalize(l.m_position - hit.m_point);
+		vec3 r_vec = glm::reflect(-l_vec, hit.m_normal);
+
+		// Add Intensities
+		I_diff += shad * glm::max(glm::dot(hit.m_normal, l_vec), 0.0f) * l.m_intensity;
+		I_spec += shad * glm::max(glm::pow(glm::dot(r_vec, v_vec), mat.m_specular_exponent), 0.0f) * l.m_intensity;
+	}
+
+	// Apply material colors
+	I_diff *= mat.m_diffuse_color;
+	I_spec *= mat.m_specular_reflection;
+
+	// Clamp the local color
+	vec3 local = glm::clamp(I_diff + I_spec , 0.0f, 1.0f);
+	if (mat.m_specular_reflection == 0.0f)
+		return local;
+
+	ray refl;
+	refl.m_origin = pi_extructed;
+	refl.m_direction = glm::reflect(r.m_direction, hit.m_normal);
+	refl.m_depth = r.m_depth + 1;
+
+	vec3 reflected_value = compute_reflect_value(refl, mat.m_roughness);
+	return lerp(local, reflected_value, mat.m_specular_reflection);
 }
 
 bool c_scene::init(std::string scene_path)
@@ -231,42 +264,53 @@ bool c_scene::init(std::string scene_path)
 			if (line.size() == 0U || line[0] == '#')
 				continue;
 
-			if (line.substr(0, 7) == "EPSILON")
+			if (line.substr(0, 8) == "EPSILON ")
 			{
 				line = line.substr(8);
 				m_epsilon = parse_flt(line);
 			}
-			else if (line.substr(0, 7) == "SAMPLES")
+			else if (line.substr(0, 8) == "S_SAMPL ")
 			{
 				line = line.substr(8);
-				m_samples = (int)parse_flt(line);
+				m_s_samples = (int)parse_flt(line);
+			}
+			else if (line.substr(0, 8) == "R_DEPTH ")
+			{
+				line = line.substr(8);
+				m_reflection_depth = (int)parse_flt(line);
+			}
+			else if (line.substr(0, 8) == "R_SAMPL ")
+			{
+				line = line.substr(8);
+				m_r_samples = (int)parse_flt(line);
 			}
 		}
 	}
 	return true;
 }
-
 vec3 c_scene::raycast(const ray & r) const
 {
-	// Ray intersect each shape on the scene
-	ray_hit hit;
-	material mat;
-	for (auto& s : m_shapes)
+	if (r.m_depth == 0 || r.m_depth <= m_reflection_depth)
 	{
-		ray_hit local = s->ray_intersect(r);
-		if (local.m_hit && local.m_time < hit.m_time)
+		// Ray intersect each shape on the scene
+		ray_hit hit;
+		material mat;
+		for (auto& s : m_shapes)
 		{
-			hit = local;
-			mat = s->m_material;
+			ray_hit local = s->ray_intersect(r);
+			if (local.m_hit && local.m_time < hit.m_time)
+			{
+				hit = local;
+				mat = s->m_material;
+			}
 		}
-	}
 
-	// Compute color if hit something
-	if (hit.m_hit)
-		return compute_phong_lightning(hit.m_point, hit.m_normal, mat);
+		// Compute color if hit something
+		if (hit.m_hit)
+			return compute_phong_lightning(r, hit, mat);
+	}
 	return vec3{0.0f};
 }
-
 void c_scene::shutdown()
 {
 	for (auto*s : m_shapes)

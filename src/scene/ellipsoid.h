@@ -7,7 +7,5 @@ struct ellipsoid : public shape
 	ray_hit ray_intersect(const ray& r)const override;
 
 	vec3 m_center;
-	vec3 m_u;
-	vec3 m_v;
-	vec3 m_w;
+	mat3 m_matrix;
 };

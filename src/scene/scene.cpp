@@ -115,6 +115,9 @@ vec3 c_scene::compute_phong_lightning(const ray & r, const ray_hit & hit, materi
 	// PI Extruded
 	vec3 pi_extructed{ hit.m_point + m_epsilon * hit.m_normal };
 
+	// Distance to hit
+	float t = glm::length(hit.m_point - r.m_origin);
+
 	// View vec
 	vec3 v_vec = glm::normalize(m_camera->get_eye() - hit.m_point);
 
@@ -129,12 +132,15 @@ vec3 c_scene::compute_phong_lightning(const ray & r, const ray_hit & hit, materi
 		float shad = compute_shadow_factor(pi_extructed, l);
 
 		// Light vector
-		vec3 l_vec = glm::normalize(l.m_position - hit.m_point);
+		vec3 l_vec = l.m_position - hit.m_point;
+		float t2 = t + glm::length(l_vec);
+		l_vec = glm::normalize(l_vec);
 		vec3 r_vec = glm::reflect(-l_vec, hit.m_normal);
 
 		// Add Intensities
-		I_diff += shad * glm::max(glm::dot(hit.m_normal, l_vec), 0.0f) * l.m_intensity;
-		I_spec += shad * glm::max(glm::pow(glm::dot(r_vec, v_vec), mat.m_specular_exponent), 0.0f) * l.m_intensity;
+		vec3 I = l.m_intensity * shad * glm::pow(m_air.m_attenuation, vec3(t2));
+		I_diff += I * glm::max(glm::dot(hit.m_normal, l_vec), 0.0f);
+		I_spec += I * glm::max(glm::pow(glm::dot(r_vec, v_vec), mat.m_specular_exponent), 0.0f);
 	}
 
 	// Apply material colors
@@ -152,7 +158,7 @@ vec3 c_scene::compute_phong_lightning(const ray & r, const ray_hit & hit, materi
 	refl.m_depth = r.m_depth + 1;
 
 	vec3 reflected_value = compute_reflect_value(refl, mat.m_roughness);
-	return lerp(local, reflected_value, mat.m_specular_reflection);
+	return local + reflected_value * mat.m_specular_reflection;
 }
 
 bool c_scene::init(std::string scene_path)

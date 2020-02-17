@@ -8,7 +8,7 @@ struct thread_data
 {
 	int width, height;
 	vec3 eye, p_0, u_scr, v_scr;
-	int start, end;
+	int step, count;
 };
 
 class c_raytracer

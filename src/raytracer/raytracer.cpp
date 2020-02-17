@@ -18,7 +18,7 @@ c_raytracer* raytracer = new c_raytracer;
 void c_raytracer::thread_job(int id, thread_data data)
 {
 	// For each assigned pixel
-	for (int p = data.start; p < data.end; p++)
+	for (int p = max(id,0); p < data.count; p+=data.step)
 	{
 		// Retrieve the near plane target
 		int x = p % data.width, y = p / data.width;
@@ -56,30 +56,25 @@ bool c_raytracer::init(size_t width, size_t height)
 	data.u_scr = pcam->m_u_vector / half_width;
 	data.v_scr = pcam->m_v_vector / half_height;
 	data.p_0 = pcam->m_origin + (0.5f - half_width)*data.u_scr - (0.5f - half_height)*data.v_scr;
-	int total_count = static_cast<int>(width*height);
+	data.count = static_cast<int>(width*height);
 
 	// Distribute screen to threads
 	if (m_parallel)
 	{
 		// Retrieve available number of threads
 		int thread_count = static_cast<int>(std::thread::hardware_concurrency())-1;
+		data.step = thread_count;
 		for (int i = 0; i < thread_count; i++)
 		{
-			// Define specific range
-			thread_data local_data{ data };
-			local_data.start = total_count / thread_count * i;
-			local_data.end = total_count / thread_count * (i+1);
-
 			// Throw the thread onto its job
-			m_threads.emplace_back(std::thread{ thread_job, i, local_data });
+			m_threads.emplace_back(std::thread{ thread_job, i, data });
 			m_thread_bb.push_back(false);
 		}
 	}
 	else
 	{
 		// Throw everything to the main thread
-		data.start = 0;
-		data.end = total_count;
+		data.step = 1;
 		thread_job(-1, data);
 	}
 	return true;

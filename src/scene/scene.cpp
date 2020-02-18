@@ -148,7 +148,7 @@ vec3 c_scene::compute_phong_lightning(const ray & r, const ray_hit & hit, materi
 	I_spec *= mat.m_specular_reflection;
 
 	// Clamp the local color
-	vec3 local = glm::clamp(I_diff + I_spec , 0.0f, 1.0f);
+	vec3 local = I_diff + I_spec;
 	if (mat.m_specular_reflection == 0.0f)
 		return local;
 

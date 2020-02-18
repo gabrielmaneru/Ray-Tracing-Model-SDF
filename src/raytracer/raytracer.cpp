@@ -26,6 +26,7 @@ void c_raytracer::thread_job(int id, thread_data data)
 
 		// Raytrace the scene
 		vec3 color = scene->raycast({ data.eye,target - data.eye });
+		color = glm::clamp(color, 0.0f, 1.0f);
 
 		// Store the pixel
 		raytracer->m_screen.set(p, color);
@@ -58,7 +59,13 @@ bool c_raytracer::init(size_t width, size_t height)
 	data.p_0 = pcam->m_origin + (0.5f - half_width)*data.u_scr - (0.5f - half_height)*data.v_scr;
 	data.count = static_cast<int>(width*height);
 
-	// Distribute screen to threads
+	//
+	int p = 400;
+	int x = p % data.width, y = p / data.width;
+	vec3 target = data.p_0 + static_cast<float>(x)*data.u_scr - static_cast<float>(y)*data.v_scr;
+
+	vec3 color = scene->raycast({ data.eye,target - data.eye });
+	//
 	if (m_parallel)
 	{
 		// Retrieve available number of threads

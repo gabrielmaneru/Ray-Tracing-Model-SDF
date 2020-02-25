@@ -73,11 +73,13 @@ float c_scene::compute_shadow_factor(vec3 pi, const light & l) const
 
 		// Raytrace ray into the light bulb
 		ray r{ pi, l.m_position + offset - pi };
+		float ray_max = glm::length(r.m_direction);
+
 		ray_hit hit;
 		for (auto& s : m_shapes)
 		{
 			ray_hit local = s->ray_intersect(r);
-			if (local.m_hit && local.m_time < hit.m_time)
+			if (local.m_hit && glm::length(hit.m_point-pi) < ray_max)
 				hit = local;
 		}
 

@@ -7,10 +7,6 @@
 
 class c_scene
 {
-	float compute_shadow_factor(vec3 pi, const light& l)const;
-	vec3 compute_reflect_value(const ray& refl, float roughness)const;
-	vec3 compute_phong_lightning(const ray& r, const ray_hit& hit, material mat)const;
-
 public:
 	bool init(std::string scene_path);
 	vec3 raycast(const ray& r)const;

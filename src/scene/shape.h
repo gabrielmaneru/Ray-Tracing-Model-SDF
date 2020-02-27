@@ -11,6 +11,7 @@ struct material
 	float m_electric_permittivity;
 	float m_magnetic_permeability;
 	float m_roughness;
+	float m_refractive_index{ 4.0f / 3.0f };
 };
 struct ray_hit
 {

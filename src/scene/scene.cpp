@@ -58,111 +58,6 @@ material parse_mat(std::string& line)
 	return{ dif, refl, exp, att, elec, mag, rou };
 }
 
-float c_scene::compute_shadow_factor(vec3 pi, const light & l) const
-{
-	// Count occluding rays
-	int count = 0;
-
-	// For each sample
-	for (int i = 0; i < m_s_samples; i++)
-	{
-		// Compute random ball vector
-		vec3 offset{ 0.0f };
-		if (i != 0)
-			offset = rand_ball(l.m_radius);
-
-		// Raytrace ray into the light bulb
-		ray r{ pi, l.m_position + offset - pi };
-		float ray_max = glm::length(r.m_direction);
-
-		ray_hit hit;
-		for (auto& s : m_shapes)
-		{
-			ray_hit local = s->ray_intersect(r);
-			if (local.m_hit && glm::length(hit.m_point-pi) < ray_max)
-				hit = local;
-		}
-
-		// If hit, count it
-		if (!hit.m_hit)
-			++count;
-	}
-
-	// Compute shadow factor
-	return count / (float)m_s_samples;
-}
-vec3 c_scene::compute_reflect_value(const ray & refl, float roughness) const
-{
-	// No Roughness
-	if (roughness == 0.0f)
-		return raycast(refl);
-
-	vec3 value{0.0f};
-	for (int i = 0; i < m_r_samples; i++)
-	{
-		// Compute random ball vector
-		vec3 offset{ 0.0f };
-		if (i != 0)
-			offset = rand_ball(roughness);
-
-		ray new_refl{ refl };
-		new_refl.m_direction += offset;
-		value += raycast(new_refl);
-	}
-
-	return value / (float)m_r_samples;
-}
-vec3 c_scene::compute_phong_lightning(const ray & r, const ray_hit & hit, material mat) const
-{
-	// PI Extruded
-	vec3 pi_extructed{ hit.m_point + m_epsilon * hit.m_normal };
-
-	// Distance to hit
-	float t = glm::length(hit.m_point - r.m_origin);
-
-	// View vec
-	vec3 v_vec = glm::normalize(m_camera->get_eye() - hit.m_point);
-
-	// Initialize Intensities
-	vec3 I_diff{ m_ambient };
-	vec3 I_spec{ 0.0f };
-
-	// Loop each light
-	for (const light& l : m_lights)
-	{
-		// Compute shadow factor
-		float shad = compute_shadow_factor(pi_extructed, l);
-
-		// Light vector
-		vec3 l_vec = l.m_position - hit.m_point;
-		float t2 = t + glm::length(l_vec);
-		l_vec = glm::normalize(l_vec);
-		vec3 r_vec = glm::reflect(-l_vec, hit.m_normal);
-
-		// Add Intensities
-		vec3 I = l.m_intensity * shad * glm::pow(m_air.m_attenuation, vec3(t2));
-		I_diff += I * glm::max(glm::dot(hit.m_normal, l_vec), 0.0f);
-		I_spec += I * glm::max(glm::pow(glm::dot(r_vec, v_vec), mat.m_specular_exponent), 0.0f);
-	}
-
-	// Apply material colors
-	I_diff *= mat.m_diffuse_color;
-	I_spec *= mat.m_specular_reflection;
-
-	// Clamp the local color
-	vec3 local = I_diff + I_spec;
-	if (mat.m_specular_reflection == 0.0f)
-		return local;
-
-	ray refl;
-	refl.m_origin = pi_extructed;
-	refl.m_direction = glm::reflect(r.m_direction, hit.m_normal);
-	refl.m_depth = r.m_depth + 1;
-
-	vec3 reflected_value = compute_reflect_value(refl, mat.m_roughness);
-	return local + reflected_value * mat.m_specular_reflection;
-}
-
 bool c_scene::init(std::string scene_path)
 {
 	// Read scene file
@@ -298,26 +193,114 @@ bool c_scene::init(std::string scene_path)
 }
 vec3 c_scene::raycast(const ray & r) const
 {
-	if (r.m_depth == 0 || r.m_depth <= m_reflection_depth)
-	{
-		// Ray intersect each shape on the scene
-		ray_hit hit;
-		material mat;
-		for (auto& s : m_shapes)
-		{
-			ray_hit local = s->ray_intersect(r);
-			if (local.m_hit && local.m_time < hit.m_time)
-			{
-				hit = local;
-				mat = s->m_material;
-			}
-		}
+	// Check if reached maximum reflection depth
+	if (r.m_depth > m_reflection_depth)
+		return glm::zero<vec3>();
 
-		// Compute color if hit something
-		if (hit.m_hit)
-			return compute_phong_lightning(r, hit, mat);
+	// Raycast the scene
+	ray_hit hit; material mat;
+	for (auto& s : m_shapes)
+	{
+		ray_hit local = s->ray_intersect(r);
+		if (local.m_hit && local.m_time < hit.m_time)
+		{
+			hit = local;
+			mat = s->m_material;
+		}
 	}
-	return vec3{0.0f};
+
+	// Check if not hitted anything
+	if (!hit.m_hit)
+		return glm::zero<vec3>();
+
+	// Extract raycast data
+	const float distance = glm::length(r.m_direction) * hit.m_time;
+	const vec3 pi = hit.m_point;
+	const vec3 normal = hit.m_normal;
+	const vec3 pi_external = pi + m_epsilon * normal;
+
+	// Extract medium data
+	const bool air_medium = r.m_refractive_index_i == 1.0f;
+	const float refractive_index_t = (air_medium) ? mat.m_refractive_index : 1.0f;
+	const vec3 attenuation = (air_medium) ? m_air.m_attenuation : mat.m_attenuation;
+
+	// Compute local illumination model
+	const vec3 view_vec = glm::normalize(m_camera->get_eye() - pi);
+	vec3 diffuse_intensity = m_ambient;
+	vec3 specular_intensity = glm::zero<vec3>();
+	for (const light& light : m_lights)
+	{
+		// Precompute light data
+		vec3 light_vec = light.m_position - pi;
+		const float light_distance_2 = glm::length2(light_vec);
+
+		// Compute shadow factor
+		int hit_count = 0;
+		for (int i = 0; i < m_s_samples; i++)
+		{
+			const vec3 offset = (i == 0) ? glm::zero<vec3>() : rand_ball(light.m_radius);
+			ray r{ pi_external, light_vec + offset };
+			bool hitted{ false };
+			for (auto& s : m_shapes)
+			{
+				const ray_hit local = s->ray_intersect(r);
+				const float local_distance_2 = glm::length2(local.m_point - pi);
+				if (local.m_hit && local_distance_2 < light_distance_2)
+				{
+					hitted = true;
+					break;
+				}
+			}
+			if (!hitted)
+				++hit_count;
+		}
+		const float shadow_factor = (m_s_samples == 0) ? 1.0f : hit_count / (float)m_s_samples;
+
+		// Compute diffuse and specular intensities
+		light_vec /= glm::sqrt(light_distance_2);
+		const vec3 reflect_vec = glm::reflect(-light_vec, hit.m_normal);
+		const vec3 light_intensity = light.m_intensity * shadow_factor;
+		diffuse_intensity  += light_intensity * glm::max(glm::dot(hit.m_normal, light_vec), 0.0f);
+		specular_intensity += light_intensity * glm::max(glm::pow(glm::dot(reflect_vec, view_vec), mat.m_specular_exponent), 0.0f);
+	}
+	diffuse_intensity *= mat.m_diffuse_color;
+	specular_intensity *= mat.m_specular_reflection;
+	vec3 color = diffuse_intensity + specular_intensity;
+
+	// Get reflection/transmission data
+	const float reflection_coeff = 1.0f;
+	const float transmission_coeff = 0.0f;
+
+	// Add reflection value
+	const float reflection_factor = reflection_coeff * mat.m_specular_reflection;
+	if (reflection_factor != 0.0f && m_r_samples > 0)
+	{
+		const vec3 reflect_vec = glm::reflect(r.m_direction, hit.m_normal);
+		const int tot_samples = (mat.m_roughness == 0.0f) ? 1 : m_r_samples;
+		vec3 reflect_value = glm::zero<vec3>();
+		for (int i = 0; i < tot_samples; i++)
+		{
+			const vec3 offset = (i==0)?glm::zero<vec3>():rand_ball(mat.m_roughness);
+			ray reflect{ pi_external, reflect_vec + offset };
+			reflect.m_depth = r.m_depth + 1;
+			reflect_value += raycast(reflect);
+		}
+		color += reflect_value * (reflection_factor / tot_samples);
+	}
+
+	// Add transmission value
+	//const float transmission_factor = transmission_coeff * mat.m_specular_reflection;
+	//if (transmission_factor != 0.0f)
+	//{
+	//	vec3 transmitted_value = glm::zero<vec3>();
+	//	color += transmitted_value * reflection_factor;
+	//}
+
+	// Apply medium attenuation
+	color *= glm::pow(attenuation, vec3{ distance });
+
+	// Return final color
+	return color;
 }
 void c_scene::shutdown()
 {

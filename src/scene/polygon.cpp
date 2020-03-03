@@ -42,7 +42,7 @@ ray_hit plane::ray_intersect(const ray & r) const
 			ray_hit hit{ true };
 			hit.m_time = time;
 			hit.m_point = r.get_point(hit.m_time);
-			hit.m_normal = m_normal;
+			hit.m_normal = (dot_ray_normal < 0.0f) ? m_normal : -m_normal;
 			return hit;
 		}
 	}

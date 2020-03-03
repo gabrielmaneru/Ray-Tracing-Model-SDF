@@ -4,7 +4,7 @@ Reproduction or disclosure of this file or its contents without the prior writte
 DigiPen Institute of Technology is prohibited.
 File Name:	scene.cpp
 Purpose: Raytracing scene implementation
-Author: Gabriel Mañeru - gabriel.m
+Author: Gabriel Maï¿½eru - gabriel.m
 - End Header --------------------------------------------------------*/
 #include "scene.h"
 #include "sphere.h"
@@ -172,19 +172,19 @@ bool c_scene::init(std::string scene_path)
 				line = line.substr(8);
 				m_epsilon = parse_flt(line);
 			}
-			else if (line.substr(0, 8) == "S_SAMPL ")
+			else if (line.substr(0, 15) == "SHADOW_SAMPLES ")
 			{
-				line = line.substr(8);
+				line = line.substr(15);
 				m_s_samples = (int)parse_flt(line);
 			}
-			else if (line.substr(0, 8) == "R_DEPTH ")
+			else if (line.substr(0, 17) == "REFLECTION_DEPTH ")
 			{
-				line = line.substr(8);
+				line = line.substr(17);
 				m_reflection_depth = (int)parse_flt(line);
 			}
-			else if (line.substr(0, 8) == "R_SAMPL ")
+			else if (line.substr(0, 19) == "REFLECTION_SAMPLES ")
 			{
-				line = line.substr(8);
+				line = line.substr(19);
 				m_r_samples = (int)parse_flt(line);
 			}
 		}
@@ -268,12 +268,15 @@ vec3 c_scene::raycast(const ray & r) const
 	vec3 color = diffuse_intensity + specular_intensity;
 
 	// Get reflection/transmission data
-	const float reflection_coeff = 1.0f;
-	const float transmission_coeff = 0.0f;
+	const float reflection_coeff = 1.0f;	// TODO
+	const float transmission_coeff = 0.0f;	// TODO
+	const float reflection_loss = reflection_coeff * mat.m_specular_reflection;
+	const float transmission_loss = transmission_coeff * mat.m_specular_reflection;
+	const float absortion = 1 - reflection_loss - transmission_loss;
+	color *= absortion;
 
 	// Add reflection value
-	const float reflection_factor = reflection_coeff * mat.m_specular_reflection;
-	if (reflection_factor != 0.0f && m_r_samples > 0)
+	if (reflection_loss != 0.0f && m_r_samples > 0)
 	{
 		const vec3 reflect_vec = glm::reflect(r.m_direction, hit.m_normal);
 		const int tot_samples = (mat.m_roughness == 0.0f) ? 1 : m_r_samples;
@@ -285,16 +288,15 @@ vec3 c_scene::raycast(const ray & r) const
 			reflect.m_depth = r.m_depth + 1;
 			reflect_value += raycast(reflect);
 		}
-		color += reflect_value * (reflection_factor / tot_samples);
+		color += reflect_value * (reflection_loss / tot_samples);
 	}
 
 	// Add transmission value
-	//const float transmission_factor = transmission_coeff * mat.m_specular_reflection;
-	//if (transmission_factor != 0.0f)
-	//{
-	//	vec3 transmitted_value = glm::zero<vec3>();
-	//	color += transmitted_value * reflection_factor;
-	//}
+	if (transmission_loss != 0.0f) // TODO
+	{
+		vec3 transmitted_value = glm::zero<vec3>();
+		color += transmitted_value * transmission_loss;
+	}
 
 	// Apply medium attenuation
 	color *= glm::pow(attenuation, vec3{ distance });

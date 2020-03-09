@@ -9,8 +9,7 @@ Author: Gabriel Mañeru - gabriel.m
 #include "box.h"
 
 // Contructor
-box::box(vec3 corner, vec3 length, vec3 width, vec3 height, material mat)
-	: shape(mat)
+box::box(vec3 corner, vec3 length, vec3 width, vec3 height)
 {
 	m_points [0] = corner;
 	m_points [1] = corner + width;

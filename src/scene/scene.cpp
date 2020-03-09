@@ -11,6 +11,7 @@ Author: Gabriel Ma�eru - gabriel.m
 #include "box.h"
 #include "polygon.h"
 #include "ellipsoid.h"
+#include "mesh.h"
 #include <string>
 #include <fstream>
 #include <utils/math_utils.h>
@@ -83,7 +84,7 @@ bool c_scene::init(std::string scene_path)
 				std::getline(file, line);
 				material mat = parse_mat(line);
 
-				m_shapes.push_back(new sphere{ center, radius, mat });
+				m_shapes.push_back({ new sphere{ center, radius}, mat });
 			}
 			else if (line.substr(0, 4) == "BOX ")
 			{
@@ -97,7 +98,7 @@ bool c_scene::init(std::string scene_path)
 				std::getline(file, line);
 				material mat = parse_mat(line);
 
-				m_shapes.push_back(new box{ corner, length, width, height, mat });
+				m_shapes.push_back({ new box{ corner, length, width, height}, mat });
 			}
 			else if (line.substr(0, 8) == "POLYGON ")
 			{
@@ -110,7 +111,7 @@ bool c_scene::init(std::string scene_path)
 				std::getline(file, line);
 				material mat = parse_mat(line);
 
-				m_shapes.push_back(new polygon{ vertices, mat });
+				m_shapes.push_back({ new polygon{ vertices}, mat });
 			}
 			else if (line.substr(0, 10) == "ELLIPSOID ")
 			{
@@ -126,7 +127,21 @@ bool c_scene::init(std::string scene_path)
 				std::getline(file, line);
 				material mat = parse_mat(line);
 
-				m_shapes.push_back(new ellipsoid{ center, u, v, w, mat });
+				m_shapes.push_back({ new ellipsoid{ center, u, v, w}, mat });
+			}
+			else if (line.substr(0, 5) == "MESH ")
+			{
+				std::string path = line.substr(5);
+
+				std::getline(file, line);
+				vec3 pos = parse_vec3(line);
+				vec3 eu_angles = parse_vec3(line);
+				float scale = parse_flt(line);
+
+				std::getline(file, line);
+				material mat = parse_mat(line);
+
+				m_shapes.push_back({ new mesh{ path, pos, eu_angles, scale}, mat });
 			}
 			else if (line.substr(0, 6) == "LIGHT ")
 			{
@@ -201,11 +216,11 @@ vec3 c_scene::raycast(const ray & r) const
 	ray_hit hit; material mat;
 	for (auto& s : m_shapes)
 	{
-		ray_hit local = s->ray_intersect(r);
+		ray_hit local = s.first->ray_intersect(r);
 		if (local.m_hit && local.m_time < hit.m_time)
 		{
 			hit = local;
-			mat = s->m_material;
+			mat = s.second;
 		}
 	}
 
@@ -243,7 +258,7 @@ vec3 c_scene::raycast(const ray & r) const
 			bool hitted{ false };
 			for (auto& s : m_shapes)
 			{
-				const ray_hit local = s->ray_intersect(r);
+				const ray_hit local = s.first->ray_intersect(r);
 				const float local_distance_2 = glm::length2(local.m_point - pi);
 				if (local.m_hit && local_distance_2 < light_distance_2)
 				{
@@ -306,7 +321,7 @@ vec3 c_scene::raycast(const ray & r) const
 }
 void c_scene::shutdown()
 {
-	for (auto*s : m_shapes)
-		delete s;
+	for (auto& s : m_shapes)
+		delete s.first;
 	m_shapes.clear();
 }

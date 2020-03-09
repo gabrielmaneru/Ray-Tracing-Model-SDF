@@ -1,8 +1,8 @@
 #include "ellipsoid.h"
 
 
-ellipsoid::ellipsoid(vec3 center, vec3 u, vec3 v, vec3 w, material mat)
-	:shape(mat), m_center(center), m_matrix(u,v,w) {}
+ellipsoid::ellipsoid(vec3 center, vec3 u, vec3 v, vec3 w)
+	: m_center(center), m_matrix(u,v,w) {}
 
 ray_hit ellipsoid::ray_intersect(const ray & r) const
 {

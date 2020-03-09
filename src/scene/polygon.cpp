@@ -61,8 +61,8 @@ vec2 plane::project_dominant(vec3 p)const
 	}
 }
 
-polygon::polygon(const std::vector<vec3>& vertices, material mat)
-	:shape(mat), m_vertices(vertices), m_plane(vertices) {}
+polygon::polygon(const std::vector<vec3>& vertices)
+	: m_vertices(vertices), m_plane(vertices) {}
 ray_hit polygon::ray_intersect(const ray & r) const
 {
 	ray_hit plane_hit = m_plane.ray_intersect(r);

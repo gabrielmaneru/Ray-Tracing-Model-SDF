@@ -2,15 +2,48 @@
 #include <string> 
 #include <fstream>
 
-mesh::mesh(const std::string & path, const vec3 & pos, const vec3 & eu_angles, float scale, material mat)
-	:shape(mat)
+void load_obj(const std::string& path, std::vector<vec3>& vertices, std::vector<std::vector<unsigned> >& faces);
+
+mesh::mesh(const std::string & path, const vec3 & pos, const vec3 & eu_angles, float scale)
+{
+	std::vector<vec3> vertices;
+	std::vector<std::vector<unsigned> > faces;
+	load_obj(path, vertices, faces);
+
+	glm::mat4 tr = glm::translate(glm::mat4(1.0f), pos);
+	tr = glm::rotate(tr, glm::radians(eu_angles.x), vec3{ 1.f,0.f,0.f });
+	tr = glm::rotate(tr, glm::radians(eu_angles.y), vec3{ 0.f,1.f,0.f });
+	tr = glm::rotate(tr, glm::radians(eu_angles.z), vec3{ 0.f,0.f,1.f });
+	tr = glm::scale(tr, vec3(scale));
+
+	for (auto& f : faces)
+	{
+		std::vector<vec3> poly_vtx;
+		for (unsigned i : f)
+			poly_vtx.push_back(vec3(tr * vec4(vertices[i], 1.0f)));
+
+		m_polygons.push_back({ poly_vtx });
+	}
+}
+
+ray_hit mesh::ray_intersect(const ray & r) const
+{
+	ray_hit best;
+	for (auto& p : m_polygons)
+	{
+		ray_hit local = p.ray_intersect(r);
+		if (local.m_hit && ( !best.m_hit || (local.m_time < best.m_time)) )
+			best = local;
+	}
+	return best;
+}
+
+void load_obj(const std::string& path, std::vector<vec3>& vertices, std::vector<std::vector<unsigned> >& faces)
 {
 	std::ifstream file;
 	file.open(path);
 	assert(file.is_open());
 	std::string line;
-	std::vector<vec3> vertices;
-	std::vector<std::vector<unsigned> > faces;
 	while (std::getline(file, line))
 	{
 		if (line.size() == 0U)
@@ -58,29 +91,4 @@ mesh::mesh(const std::string & path, const vec3 & pos, const vec3 & eu_angles, f
 		}
 	}
 	file.close();
-
-	glm::mat4 tr = glm::translate(glm::mat4(1.0f), pos)
-		* glm::mat4_cast(quat(eu_angles))
-		* glm::scale(glm::mat4(1.0f), vec3(scale));
-
-	for (auto& f : faces)
-	{
-		std::vector<vec3> poly_vtx;
-		for (unsigned i : f)
-			poly_vtx.push_back(vec3(tr * vec4(vertices[i], 1.0f)));
-
-		m_polygons.push_back({ poly_vtx, mat });
-	}
-}
-
-ray_hit mesh::ray_intersect(const ray & r) const
-{
-	ray_hit best;
-	for (auto& p : m_polygons)
-	{
-		ray_hit local = p.ray_intersect(r);
-		if (!best.m_hit || (local.m_hit && local.m_time < best.m_time) )
-			best = local;
-	}
-	return best;
 }

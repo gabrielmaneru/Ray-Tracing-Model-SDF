@@ -15,7 +15,7 @@ struct plane
 
 struct polygon : public shape
 {
-	polygon(const std::vector<vec3>& vertices, material mat);
+	polygon(const std::vector<vec3>& vertices);
 	ray_hit ray_intersect(const ray& r)const override;
 
 	std::vector<vec3> m_vertices;

@@ -9,8 +9,8 @@ Author: Gabriel Mañeru - gabriel.m
 #include "sphere.h"
 
 // Constructor
-sphere::sphere(vec3 center, float radius, material mat)
-	: shape(mat), m_center(center), m_radius(radius) {}
+sphere::sphere(vec3 center, float radius)
+	: m_center(center), m_radius(radius) {}
 
 ray_hit sphere::ray_intersect(const ray & r) const
 {

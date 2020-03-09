@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
 {
 	// Default values
 	int res_x = 500, res_y = 500;
-	std::string scene = "CornellBox.txt";
+	std::string scene = "RefractScene.txt";
 
 	// Retrieve arguments
 	if (argc == 1);

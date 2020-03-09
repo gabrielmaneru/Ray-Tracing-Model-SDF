@@ -23,7 +23,5 @@ struct ray_hit
 
 struct shape
 {
-	shape(material m) : m_material(m) {}
 	virtual ray_hit ray_intersect(const ray& r)const=0;
-	material m_material;
 };

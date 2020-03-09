@@ -163,8 +163,8 @@ bool c_scene::init(std::string scene_path)
 				vec3 origin = parse_vec3(line);
 				vec3 u_vector = parse_vec3(line);
 				vec3 v_vector = parse_vec3(line);
-				float focal_length = parse_flt(line);
-				m_camera = new camera{ origin, u_vector, v_vector, focal_length };
+float focal_length = parse_flt(line);
+m_camera = new camera{ origin, u_vector, v_vector, focal_length };
 			}
 		}
 		assert(m_camera != nullptr);
@@ -213,31 +213,31 @@ vec3 c_scene::raycast(const ray & r) const
 		return glm::zero<vec3>();
 
 	// Raycast the scene
-	ray_hit hit; material mat;
+	ray_hit hit; const shape_data* shape{ nullptr };
 	for (auto& s : m_shapes)
 	{
-		ray_hit local = s.first->ray_intersect(r);
-		if (local.m_hit && local.m_time < hit.m_time)
+		ray_hit local = s.m_shape->ray_intersect(r);
+		if (local.m_has_hit && local.m_time < hit.m_time)
 		{
 			hit = local;
-			mat = s.second;
+			shape = &s;
 		}
 	}
 
 	// Check if not hitted anything
-	if (!hit.m_hit)
+	if (!hit.m_has_hit)
 		return glm::zero<vec3>();
 
 	// Extract raycast data
 	const float distance = glm::length(r.m_direction) * hit.m_time;
-	const vec3 pi = hit.m_point;
-	const vec3 normal = hit.m_normal;
+	const vec3 pi = r.get_point(hit.m_time);
+	const vec3 normal = shape->m_shape->get_normal(r, hit, pi);
 	const vec3 pi_external = pi + m_epsilon * normal;
 
 	// Extract medium data
 	const bool air_medium = r.m_refractive_index_i == 1.0f;
-	const float refractive_index_t = (air_medium) ? mat.m_refractive_index : 1.0f;
-	const vec3 attenuation = (air_medium) ? m_air.m_attenuation : mat.m_attenuation;
+	const float refractive_index_t = (air_medium) ? shape->m_mat.m_refractive_index : 1.0f;
+	const vec3 attenuation = (air_medium) ? m_air.m_attenuation : shape->m_mat.m_attenuation;
 
 	// Compute local illumination model
 	const vec3 view_vec = glm::normalize(m_camera->get_eye() - pi);
@@ -254,16 +254,20 @@ vec3 c_scene::raycast(const ray & r) const
 		for (int i = 0; i < m_s_samples; i++)
 		{
 			const vec3 offset = (i == 0) ? glm::zero<vec3>() : rand_ball(light.m_radius);
-			ray r{ pi_external, light_vec + offset };
+			ray r_shad{ pi_external, light_vec + offset };
 			bool hitted{ false };
 			for (auto& s : m_shapes)
 			{
-				const ray_hit local = s.first->ray_intersect(r);
-				const float local_distance_2 = glm::length2(local.m_point - pi);
-				if (local.m_hit && local_distance_2 < light_distance_2)
+				const ray_hit local = s.m_shape->ray_intersect(r_shad);
+				if (local.m_has_hit)
 				{
-					hitted = true;
-					break;
+					const float local_distance_2 = glm::length2(r_shad.get_point(local.m_time) - pi);
+					if (local_distance_2 < light_distance_2)
+					{
+
+						hitted = true;
+						break;
+					}
 				}
 			}
 			if (!hitted)
@@ -273,35 +277,35 @@ vec3 c_scene::raycast(const ray & r) const
 
 		// Compute diffuse and specular intensities
 		light_vec /= glm::sqrt(light_distance_2);
-		const vec3 reflect_vec = glm::reflect(-light_vec, hit.m_normal);
+		const vec3 reflect_vec = glm::reflect(-light_vec, normal);
 		const vec3 light_intensity = light.m_intensity * shadow_factor;
-		diffuse_intensity  += light_intensity * glm::max(glm::dot(hit.m_normal, light_vec), 0.0f);
-		specular_intensity += light_intensity * glm::max(glm::pow(glm::dot(reflect_vec, view_vec), mat.m_specular_exponent), 0.0f);
+		diffuse_intensity  += light_intensity * glm::max(glm::dot(normal, light_vec), 0.0f);
+		specular_intensity += light_intensity * glm::max(glm::pow(glm::dot(reflect_vec, view_vec), shape->m_mat.m_specular_exponent), 0.0f);
 	}
-	diffuse_intensity *= mat.m_diffuse_color;
-	specular_intensity *= mat.m_specular_reflection;
+	diffuse_intensity *= shape->m_mat.m_diffuse_color;
+	specular_intensity *= shape->m_mat.m_specular_reflection;
 	vec3 color = diffuse_intensity + specular_intensity;
 
 	// Get reflection/transmission data
 	const float reflection_coeff = 1.0f;	// TODO
 	const float transmission_coeff = 0.0f;	// TODO
-	const float reflection_loss = reflection_coeff * mat.m_specular_reflection;
-	const float transmission_loss = transmission_coeff * mat.m_specular_reflection;
+	const float reflection_loss = reflection_coeff * shape->m_mat.m_specular_reflection;
+	const float transmission_loss = transmission_coeff * shape->m_mat.m_specular_reflection;
 	const float absortion = 1 - reflection_loss - transmission_loss;
 	color *= absortion;
 
 	// Add reflection value
 	if (reflection_loss != 0.0f && m_r_samples > 0)
 	{
-		const vec3 reflect_vec = glm::reflect(r.m_direction, hit.m_normal);
-		const int tot_samples = (mat.m_roughness == 0.0f) ? 1 : m_r_samples;
+		const vec3 reflect_vec = glm::reflect(r.m_direction, normal);
+		const int tot_samples = (shape->m_mat.m_roughness == 0.0f) ? 1 : m_r_samples;
 		vec3 reflect_value = glm::zero<vec3>();
 		for (int i = 0; i < tot_samples; i++)
 		{
-			const vec3 offset = (i==0)?glm::zero<vec3>():rand_ball(mat.m_roughness);
-			ray reflect{ pi_external, reflect_vec + offset };
-			reflect.m_depth = r.m_depth + 1;
-			reflect_value += raycast(reflect);
+			const vec3 offset = (i==0)?glm::zero<vec3>():rand_ball(shape->m_mat.m_roughness);
+			ray r_refl{ pi_external, reflect_vec + offset };
+			r_refl.m_depth = r.m_depth + 1;
+			reflect_value += raycast(r_refl);
 		}
 		color += reflect_value * (reflection_loss / tot_samples);
 	}
@@ -322,6 +326,6 @@ vec3 c_scene::raycast(const ray & r) const
 void c_scene::shutdown()
 {
 	for (auto& s : m_shapes)
-		delete s.first;
+		delete s.m_shape;
 	m_shapes.clear();
 }

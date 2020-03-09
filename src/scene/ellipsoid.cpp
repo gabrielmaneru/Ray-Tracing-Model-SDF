@@ -2,13 +2,14 @@
 
 
 ellipsoid::ellipsoid(vec3 center, vec3 u, vec3 v, vec3 w)
-	: m_center(center), m_matrix(u,v,w) {}
+	: m_center(center), m_matrix(u,v,w)
+{
+	m_inv = glm::inverse(m_matrix);
+}
 
 ray_hit ellipsoid::ray_intersect(const ray & r) const
 {
-	mat3 inv = glm::inverse(m_matrix);
-
-	ray r_unit{ inv*(r.m_origin - m_center), inv * r.m_direction };
+	ray r_unit{ m_inv*(r.m_origin - m_center), m_inv * r.m_direction };
 
 	float a = glm::dot(r_unit.m_direction, r_unit.m_direction);
 	float b = 2.0f * glm::dot(r_unit.m_origin, r_unit.m_direction);
@@ -29,9 +30,12 @@ ray_hit ellipsoid::ray_intersect(const ray & r) const
 			hit.m_time = (t2 < 0.0f) ? FLT_MAX : t2;
 		else
 			hit.m_time = t1;
-		hit.m_point = r.get_point(hit.m_time);
-		vec3 unit_n = r_unit.get_point(hit.m_time);
-		hit.m_normal = glm::normalize(glm::inverse(glm::transpose(m_matrix)) * unit_n);
 		return hit;
 	}
+}
+
+vec3 ellipsoid::get_normal(const ray &, const ray_hit &, const vec3 & pi) const
+{
+	vec3 unit_pi = m_inv * (pi - m_center);
+	return glm::normalize(glm::inverse(glm::transpose(m_matrix)) * unit_pi);
 }

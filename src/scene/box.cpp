@@ -4,7 +4,7 @@ Reproduction or disclosure of this file or its contents without the prior writte
 DigiPen Institute of Technology is prohibited.
 File Name:	box.cpp
 Purpose: Box shape
-Author: Gabriel Mañeru - gabriel.m
+Author: Gabriel Maï¿½eru - gabriel.m
 - End Header --------------------------------------------------------*/
 #include "box.h"
 
@@ -48,8 +48,8 @@ ray_hit box::ray_intersect(const ray & r) const
 			if (ti > enter.m_time)
 			{
 				enter.m_time = ti;
-				enter.m_hit |= true;
-				enter.m_normal = m_normals[i];
+				enter.m_has_hit |= true;
+				enter.m_temp_normal = m_normals[i];
 			}
 		}
 		// If exiting the face
@@ -58,8 +58,8 @@ ray_hit box::ray_intersect(const ray & r) const
 			if(ti < exit.m_time)
 			{
 				exit.m_time = ti;
-				exit.m_hit |= true;
-				exit.m_normal = m_normals[i];
+				exit.m_has_hit |= true;
+				exit.m_temp_normal = m_normals[i];
 			}
 		}
 	}
@@ -69,6 +69,5 @@ ray_hit box::ray_intersect(const ray & r) const
 		return{};
 
 	ray_hit final = (enter.m_time > 0.0f) ? enter : exit;
-	final.m_point = r.get_point(final.m_time);
 	return final;
 }

@@ -14,7 +14,12 @@ public:
 
 
 	// Scene Properties
-	std::vector<std::pair<shape*,material>> m_shapes;
+	struct shape_data
+	{
+		shape* m_shape;
+		material m_mat;
+	};
+	std::vector<shape_data> m_shapes;
 	std::vector<light> m_lights;
 	std::string m_scene_path;
 	camera* m_camera{ nullptr };

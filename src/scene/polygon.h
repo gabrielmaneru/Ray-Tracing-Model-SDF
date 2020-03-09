@@ -17,6 +17,7 @@ struct polygon : public shape
 {
 	polygon(const std::vector<vec3>& vertices);
 	ray_hit ray_intersect(const ray& r)const override;
+	vec3 get_normal(const ray& r, const ray_hit& hit, const vec3& pi)const override;
 
 	std::vector<vec3> m_vertices;
 	plane m_plane;

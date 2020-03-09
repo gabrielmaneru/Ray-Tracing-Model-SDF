@@ -29,12 +29,15 @@ mesh::mesh(const std::string & path, const vec3 & pos, const vec3 & eu_angles, f
 ray_hit mesh::ray_intersect(const ray & r) const
 {
 	ray_hit best;
+	const polygon* best_p{ nullptr };
 	for (auto& p : m_polygons)
 	{
 		ray_hit local = p.ray_intersect(r);
-		if (local.m_hit && ( !best.m_hit || (local.m_time < best.m_time)) )
-			best = local;
+		if (local.m_has_hit && (!best.m_has_hit || (local.m_time < best.m_time)))
+			best = local, best_p = &p;
 	}
+	if (best.m_has_hit)
+		best.m_temp_normal = best_p->get_normal(r, {}, {});
 	return best;
 }
 

@@ -34,9 +34,11 @@ ray_hit sphere::ray_intersect(const ray & r) const
 			hit.m_time = (t2 < 0.0f) ? FLT_MAX : t2;
 		else
 			hit.m_time = t1;
-
-		hit.m_point = r.get_point(hit.m_time);
-		hit.m_normal = glm::normalize(hit.m_point - m_center);
 		return hit;
 	}
+}
+
+vec3 sphere::get_normal(const ray &, const ray_hit &, const vec3 & pi) const
+{
+	return glm::normalize(pi - m_center);
 }

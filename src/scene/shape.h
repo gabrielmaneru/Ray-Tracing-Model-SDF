@@ -15,13 +15,16 @@ struct material
 };
 struct ray_hit
 {
-	bool m_hit{ false };
+	bool m_has_hit{ false };
 	float m_time{FLT_MAX};
-	vec3 m_point;
-	vec3 m_normal;
+	vec3 m_temp_normal;
 };
 
 struct shape
 {
-	virtual ray_hit ray_intersect(const ray& r)const=0;
+	virtual ray_hit ray_intersect(const ray& r)const = 0;
+	virtual vec3 get_normal(const ray& r, const ray_hit& hit, const vec3& pi)const
+	{
+		return hit.m_temp_normal;
+	}
 };

@@ -38,13 +38,7 @@ ray_hit plane::ray_intersect(const ray & r) const
 		vec3 delta = m_point - r.m_origin;
 		float time = glm::dot(delta, m_normal) / dot_ray_normal;
 		if (time >= 0.0f)
-		{
-			ray_hit hit{ true };
-			hit.m_time = time;
-			hit.m_point = r.get_point(hit.m_time);
-			hit.m_normal = (dot_ray_normal < 0.0f) ? m_normal : -m_normal;
-			return hit;
-		}
+			return { true, time };
 	}
 	return {};
 }
@@ -59,6 +53,7 @@ vec2 plane::project_dominant(vec3 p)const
 	case plane::e_zAxis:
 		return { p.x,p.y };
 	}
+	return{};
 }
 
 polygon::polygon(const std::vector<vec3>& vertices)
@@ -66,9 +61,10 @@ polygon::polygon(const std::vector<vec3>& vertices)
 ray_hit polygon::ray_intersect(const ray & r) const
 {
 	ray_hit plane_hit = m_plane.ray_intersect(r);
-	if (plane_hit.m_hit)
+	if (plane_hit.m_has_hit)
 	{
-		vec2 proj_pi = m_plane.project_dominant(plane_hit.m_point);
+		vec3 hit_point = r.get_point(plane_hit.m_time);
+		vec2 proj_pi = m_plane.project_dominant(hit_point);
 
 		std::vector<vec2> proj_vertices(m_vertices.size());
 		for (size_t i = 0; i < proj_vertices.size(); ++i)
@@ -98,4 +94,10 @@ ray_hit polygon::ray_intersect(const ray & r) const
 			return plane_hit;
 	}
 	return {};
+}
+
+vec3 polygon::get_normal(const ray & r, const ray_hit&, const vec3&) const
+{
+	float dot_ray_normal = glm::dot(r.m_direction, m_plane.m_normal);
+	return (dot_ray_normal < 0.0f) ? m_plane.m_normal : -m_plane.m_normal;
 }

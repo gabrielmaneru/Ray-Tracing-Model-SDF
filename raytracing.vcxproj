@@ -153,6 +153,7 @@
     <ClCompile Include="src\scene\box.cpp" />
     <ClCompile Include="src\scene\camera.cpp" />
     <ClCompile Include="src\scene\ellipsoid.cpp" />
+    <ClCompile Include="src\scene\mesh.cpp" />
     <ClCompile Include="src\scene\polygon.cpp" />
     <ClCompile Include="src\scene\scene.cpp" />
     <ClCompile Include="src\scene\sphere.cpp" />
@@ -413,6 +414,7 @@
     <ClInclude Include="src\scene\camera.h" />
     <ClInclude Include="src\scene\ellipsoid.h" />
     <ClInclude Include="src\scene\light.h" />
+    <ClInclude Include="src\scene\mesh.h" />
     <ClInclude Include="src\scene\polygon.h" />
     <ClInclude Include="src\scene\scene.h" />
     <ClInclude Include="src\scene\shape.h" />

@@ -9,5 +9,5 @@ struct ray
 	vec3 get_point(float t)const;
 
 	int m_depth{ 0 };
-	float m_refractive_index_i{ 1.0f };
+	bool in_air{ true };
 };

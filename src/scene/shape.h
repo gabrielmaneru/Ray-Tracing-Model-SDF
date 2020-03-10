@@ -8,10 +8,11 @@ struct material
 	float m_specular_reflection;
 	float m_specular_exponent;
 	vec3 m_attenuation;
-	float m_electric_permittivity;
-	float m_magnetic_permeability;
 	float m_roughness;
-	float m_refractive_index{ 4.0f / 3.0f };
+	float m_magnetic_permeability;
+	float m_inv_magnetic_permeability;
+	float m_refractive_index;
+	float m_inv_refractive_index;
 };
 struct ray_hit
 {

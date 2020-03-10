@@ -18,46 +18,9 @@ Author: Gabriel Ma�eru - gabriel.m
 
 c_scene* scene = new c_scene;
 
-// Parse helpers
-vec3 parse_vec3(std::string& line)
-{
-	vec3 v;
-	line = line.substr(line.find('(') + 1);
-	size_t idx = line.find(',');
-	v.x = static_cast<float>(atof(line.substr(0, idx).c_str()));
-	line = line.substr(idx + 1);
-	idx = line.find(',');
-	v.y = static_cast<float>(atof(line.substr(0, idx).c_str()));
-	line = line.substr(idx + 1);
-	idx = line.find(')');
-	v.z = static_cast<float>(atof(line.substr(0, idx).c_str()));
-	if (idx + 2 <= line.size())
-		line = line.substr(idx + 2);
-	else
-		line = {};
-	return v;
-}
-float parse_flt(std::string& line)
-{
-	float v = static_cast<float>(atof(line.c_str()));
-	size_t idx = line.find(' ');
-	if (idx <= line.size())
-		line = line.substr(idx + 1);
-	else
-		line = {};
-	return v;
-}
-material parse_mat(std::string& line)
-{
-	vec3 dif = parse_vec3(line);
-	float refl = parse_flt(line);
-	float exp = parse_flt(line);
-	vec3 att = parse_vec3(line);
-	float elec = parse_flt(line);
-	float mag = parse_flt(line);
-	float rou = parse_flt(line);
-	return{ dif, refl, exp, att, elec, mag, rou };
-}
+vec3 parse_vec3(std::string& line);
+float parse_flt(std::string& line);
+material parse_mat(std::string& line);
 
 bool c_scene::init(std::string scene_path)
 {
@@ -89,8 +52,6 @@ bool c_scene::init(std::string scene_path)
 			else if (line.substr(0, 4) == "BOX ")
 			{
 				vec3 corner = parse_vec3(line);
-
-				std::getline(file, line);
 				vec3 length = parse_vec3(line);
 				vec3 width = parse_vec3(line);
 				vec3 height = parse_vec3(line);
@@ -141,7 +102,7 @@ bool c_scene::init(std::string scene_path)
 				std::getline(file, line);
 				material mat = parse_mat(line);
 
-				m_shapes.push_back({ new mesh{ path, pos, eu_angles, scale}, mat });
+				m_shapes.push_back({ new bounded_mesh{ path, pos, eu_angles, scale}, mat });
 			}
 			else if (line.substr(0, 6) == "LIGHT ")
 			{
@@ -163,8 +124,8 @@ bool c_scene::init(std::string scene_path)
 				vec3 origin = parse_vec3(line);
 				vec3 u_vector = parse_vec3(line);
 				vec3 v_vector = parse_vec3(line);
-float focal_length = parse_flt(line);
-m_camera = new camera{ origin, u_vector, v_vector, focal_length };
+				float focal_length = parse_flt(line);
+				m_camera = new camera{ origin, u_vector, v_vector, focal_length };
 			}
 		}
 		assert(m_camera != nullptr);
@@ -206,6 +167,23 @@ m_camera = new camera{ origin, u_vector, v_vector, focal_length };
 	}
 	return true;
 }
+
+
+float compute_reflectance(const float n_ratio, const float u_ratio, const float cosI)
+{
+	float E_perp_ratio, E_para_ratio;
+	if (n_ratio > 0.01f)
+	{
+		const float root = glm::sqrt(1.0f - n_ratio * n_ratio*(1 - cosI * cosI));
+		E_perp_ratio = (n_ratio*cosI - u_ratio * root) / (n_ratio*cosI + u_ratio * root);
+		E_para_ratio = (u_ratio*cosI - n_ratio * root) / (u_ratio*cosI + n_ratio * root);
+	}
+	else
+		E_perp_ratio = -1.f, E_para_ratio = 1.f;
+
+	return .5f*(E_perp_ratio*E_perp_ratio + E_para_ratio * E_para_ratio);
+}
+
 vec3 c_scene::raycast(const ray & r) const
 {
 	// Check if reached maximum reflection depth
@@ -230,14 +208,17 @@ vec3 c_scene::raycast(const ray & r) const
 
 	// Extract raycast data
 	const float distance = glm::length(r.m_direction) * hit.m_time;
+	const vec3 ray_dir = glm::normalize(r.m_direction);
 	const vec3 pi = r.get_point(hit.m_time);
-	const vec3 normal = shape->m_shape->get_normal(r, hit, pi);
+	vec3 normal = shape->m_shape->get_normal(r, hit, pi);
+	if (r.in_air && glm::dot(normal, ray_dir) > 0.0f)
+		normal = -normal;
 	const vec3 pi_external = pi + m_epsilon * normal;
 
 	// Extract medium data
-	const bool air_medium = r.m_refractive_index_i == 1.0f;
-	const float refractive_index_t = (air_medium) ? shape->m_mat.m_refractive_index : 1.0f;
-	const vec3 attenuation = (air_medium) ? m_air.m_attenuation : shape->m_mat.m_attenuation;
+	const float n_ratio = r.in_air ? shape->m_mat.m_inv_refractive_index : shape->m_mat.m_refractive_index;
+	const float u_ratio = r.in_air ? shape->m_mat.m_inv_magnetic_permeability : shape->m_mat.m_magnetic_permeability;
+	const vec3 attenuation = r.in_air ? m_air.m_attenuation : shape->m_mat.m_attenuation;
 
 	// Compute local illumination model
 	const vec3 view_vec = glm::normalize(m_camera->get_eye() - pi);
@@ -287,8 +268,10 @@ vec3 c_scene::raycast(const ray & r) const
 	vec3 color = diffuse_intensity + specular_intensity;
 
 	// Get reflection/transmission data
-	const float reflection_coeff = 1.0f;	// TODO
-	const float transmission_coeff = 0.0f;	// TODO
+	const float cosI = glm::dot(-ray_dir, normal);
+	const vec3 refr_vec = glm::refract(ray_dir, normal, n_ratio);
+	const float reflection_coeff = glm::length2(refr_vec) == 0.0f ? 1.0f : compute_reflectance(n_ratio, u_ratio, cosI);
+	const float transmission_coeff = 1.0f - reflection_coeff;
 	const float reflection_loss = reflection_coeff * shape->m_mat.m_specular_reflection;
 	const float transmission_loss = transmission_coeff * shape->m_mat.m_specular_reflection;
 	const float absortion = 1 - reflection_loss - transmission_loss;
@@ -297,7 +280,7 @@ vec3 c_scene::raycast(const ray & r) const
 	// Add reflection value
 	if (reflection_loss != 0.0f && m_r_samples > 0)
 	{
-		const vec3 reflect_vec = glm::reflect(r.m_direction, normal);
+		const vec3 reflect_vec = glm::reflect(ray_dir, normal);
 		const int tot_samples = (shape->m_mat.m_roughness == 0.0f) ? 1 : m_r_samples;
 		vec3 reflect_value = glm::zero<vec3>();
 		for (int i = 0; i < tot_samples; i++)
@@ -313,7 +296,11 @@ vec3 c_scene::raycast(const ray & r) const
 	// Add transmission value
 	if (transmission_loss != 0.0f) // TODO
 	{
-		vec3 transmitted_value = glm::zero<vec3>();
+		vec3 pi_internal = pi + m_epsilon * ray_dir;
+		ray r_refr{ pi_internal, refr_vec };
+		r_refr.m_depth = r.m_depth + 1;
+		r_refr.in_air = !r.in_air;
+		vec3 transmitted_value = raycast(r_refr);
 		color += transmitted_value * transmission_loss;
 	}
 
@@ -328,4 +315,47 @@ void c_scene::shutdown()
 	for (auto& s : m_shapes)
 		delete s.m_shape;
 	m_shapes.clear();
+}
+
+
+// Parse helpers
+vec3 parse_vec3(std::string& line)
+{
+	vec3 v;
+	line = line.substr(line.find('(') + 1);
+	size_t idx = line.find(',');
+	v.x = static_cast<float>(atof(line.substr(0, idx).c_str()));
+	line = line.substr(idx + 1);
+	idx = line.find(',');
+	v.y = static_cast<float>(atof(line.substr(0, idx).c_str()));
+	line = line.substr(idx + 1);
+	idx = line.find(')');
+	v.z = static_cast<float>(atof(line.substr(0, idx).c_str()));
+	if (idx + 2 <= line.size())
+		line = line.substr(idx + 2);
+	else
+		line = {};
+	return v;
+}
+float parse_flt(std::string& line)
+{
+	float v = static_cast<float>(atof(line.c_str()));
+	size_t idx = line.find(' ');
+	if (idx <= line.size())
+		line = line.substr(idx + 1);
+	else
+		line = {};
+	return v;
+}
+material parse_mat(std::string& line)
+{
+	vec3 dif = parse_vec3(line);
+	float refl = parse_flt(line);
+	float exp = parse_flt(line);
+	vec3 att = parse_vec3(line);
+	float elec = parse_flt(line);
+	float mag = parse_flt(line);
+	float rou = parse_flt(line);
+	float refr = glm::sqrt(elec*mag);
+	return{ dif, refl, exp, att, rou, mag, 1.0f / mag, refr, 1.0f / refr };
 }

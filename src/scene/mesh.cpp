@@ -95,3 +95,28 @@ void load_obj(const std::string& path, std::vector<vec3>& vertices, std::vector<
 	}
 	file.close();
 }
+
+box compute_aabb(const std::vector<polygon>& polys)
+{
+	glm::vec3 min{ polys[0].m_vertices[0] };
+	glm::vec3 max{ polys[0].m_vertices[0] };
+
+	for (auto& p : polys)
+		for (auto&v : p.m_vertices)
+			min = glm::min(min, v),
+			max = glm::max(max, v);
+
+	glm::vec3 diff = max - min;
+	return box{ min, {diff.x,0.0f,0.0f}, {0.0f, diff.y, 0.0f},{0.0f, 0.0f, diff.z} };
+}
+
+bounded_mesh::bounded_mesh(const std::string & path, const vec3 & pos, const vec3 & eu_angles, float scale)
+	:mesh(path, pos, eu_angles, scale), m_bounding_box(compute_aabb(m_polygons)) {}
+
+ray_hit bounded_mesh::ray_intersect(const ray & r) const
+{
+	ray_hit aabb_hit = m_bounding_box.ray_intersect(r);
+	if (!aabb_hit.m_has_hit)
+		return {};
+	return mesh::ray_intersect(r);
+}

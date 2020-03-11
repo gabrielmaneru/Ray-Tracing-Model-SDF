@@ -143,25 +143,40 @@ bool c_scene::init(std::string scene_path)
 			if (line.size() == 0U || line[0] == '#')
 				continue;
 
-			if (line.substr(0, 8) == "EPSILON ")
+			if (line.substr(0, 14) == "EPSILON_VALUE ")
 			{
-				line = line.substr(8);
+				line = line.substr(14);
 				m_epsilon = parse_flt(line);
 			}
+
 			else if (line.substr(0, 15) == "SHADOW_SAMPLES ")
 			{
 				line = line.substr(15);
-				m_s_samples = (int)parse_flt(line);
+				m_shadow_samples = (int)parse_flt(line);
 			}
-			else if (line.substr(0, 17) == "REFLECTION_DEPTH ")
+
+			else if (line.substr(0, 16) == "RECURSION_DEPTH ")
 			{
-				line = line.substr(17);
-				m_reflection_depth = (int)parse_flt(line);
+				line = line.substr(16);
+				m_recursion_depth = (int)parse_flt(line);
 			}
-			else if (line.substr(0, 19) == "REFLECTION_SAMPLES ")
+
+			else if (line.substr(0, 25) == "ROUGH_REFLECTION_SAMPLES ")
+			{
+				line = line.substr(25);
+				m_rough_reflection_samples = (int)parse_flt(line);
+			}
+
+			else if (line.substr(0, 19) == "AA_SECTION_SAMPLES ")
 			{
 				line = line.substr(19);
-				m_r_samples = (int)parse_flt(line);
+				m_aa_section_samples = (int)parse_flt(line);
+			}
+
+			else if (line.substr(0, 19) == "AA_RECURSION_DEPTH ")
+			{
+				line = line.substr(19);
+				m_aa_recursion_depth = (int)parse_flt(line);
 			}
 		}
 	}
@@ -170,18 +185,47 @@ bool c_scene::init(std::string scene_path)
 
 vec3 c_scene::raytrace_pixel(const vec3 & px_center, const vec3 & px_width, const vec3 & px_height, const vec3 & eye) const
 {
-	const int AA = 16;
-	const float AA_step = 1.0f / AA;
-	float
-		s_x = 0.5f * AA_step - 0.5f,
-		s_y = 0.5f * AA_step - 0.5f;
+	if (m_aa_recursion_depth == 1) // Non-Adaptive
+	{
+		const int samples = m_aa_section_samples;
+		float step = 1.0f / samples;
+		vec3 color = glm::zero<vec3>();
 
-	vec3 color = glm::zero<vec3>();
-	for (int x = 0; x < AA; ++x, s_x += AA_step)
-		for(int y = 0; y < AA; ++y, s_y += AA_step)
-			color += scene->raycast({ eye,px_center + s_x * px_width - s_y * px_height - eye });
+		float s_x = 0.5f * step - 0.5f;
+		for (int x = 0; x < samples; ++x, s_x += step)
+		{
+			float s_y = 0.5f * step - 0.5f;
+			for (int y = 0; y < samples; ++y, s_y += step)
+			{
+				const vec3 new_target = px_center + s_x * px_width - s_y * px_height;
+				color += scene->raytrace({ eye, new_target - eye });
+			}
+		}
+		return color / static_cast<float>(samples*samples);
+	}
+	else
+	{
+		const float step = 0.25f;
 
-	return color / (float)(AA*AA);
+		auto adaptive_4x4 = [&](const vec3 & sec_center, const vec3 & sec_width, const vec3 & sec_height)->void
+		{
+			vec3 color = glm::zero<vec3>();
+		};
+
+
+		float s_x = 0.5f * AA_step - 0.5f;
+		for (int x = 0; x < AA; ++x, s_x += AA_step)
+		{
+			float s_y = 0.5f * AA_step - 0.5f;
+			for (int y = 0; y < AA; ++y, s_y += AA_step)
+			{
+				const vec3 new_target = px_center + s_x * px_width - s_y * px_height;
+				color += scene->raytrace({ eye, new_target - eye });
+			}
+		}
+
+		return color / static_cast<float>(AA*AA);
+	}
 }
 
 
@@ -200,10 +244,10 @@ float compute_reflectance(const float n_ratio, const float u_ratio, const float 
 	return .5f*(E_perp_ratio*E_perp_ratio + E_para_ratio * E_para_ratio);
 }
 
-vec3 c_scene::raycast(const ray & r) const
+vec3 c_scene::raytrace(const ray & r) const
 {
 	// Check if reached maximum reflection depth
-	if (r.m_depth > m_reflection_depth)
+	if (r.m_depth > m_recursion_depth)
 		return glm::zero<vec3>();
 
 	// Raycast the scene
@@ -248,7 +292,7 @@ vec3 c_scene::raycast(const ray & r) const
 
 		// Compute shadow factor
 		int hit_count = 0;
-		for (int i = 0; i < m_s_samples; i++)
+		for (int i = 0; i < m_shadow_samples; i++)
 		{
 			const vec3 offset = (i == 0) ? glm::zero<vec3>() : rand_ball(light.m_radius);
 			ray r_shad{ pi_external, light_vec + offset };
@@ -270,7 +314,7 @@ vec3 c_scene::raycast(const ray & r) const
 			if (!hitted)
 				++hit_count;
 		}
-		const float shadow_factor = (m_s_samples == 0) ? 1.0f : hit_count / (float)m_s_samples;
+		const float shadow_factor = (m_shadow_samples == 0) ? 1.0f : hit_count / (float)m_shadow_samples;
 
 		// Compute diffuse and specular intensities
 		light_vec /= glm::sqrt(light_distance_2);
@@ -294,17 +338,17 @@ vec3 c_scene::raycast(const ray & r) const
 	color *= absortion;
 
 	// Add reflection value
-	if (reflection_loss != 0.0f && m_r_samples > 0)
+	if (reflection_loss != 0.0f && m_rough_reflection_samples > 0)
 	{
 		const vec3 reflect_vec = glm::reflect(ray_dir, normal);
-		const int tot_samples = (shape->m_mat.m_roughness == 0.0f) ? 1 : m_r_samples;
+		const int tot_samples = (shape->m_mat.m_roughness == 0.0f) ? 1 : m_rough_reflection_samples;
 		vec3 reflect_value = glm::zero<vec3>();
 		for (int i = 0; i < tot_samples; i++)
 		{
 			const vec3 offset = (i==0)?glm::zero<vec3>():rand_ball(shape->m_mat.m_roughness);
 			ray r_refl{ pi_external, reflect_vec + offset };
 			r_refl.m_depth = r.m_depth + 1;
-			reflect_value += raycast(r_refl);
+			reflect_value += raytrace(r_refl);
 		}
 		color += reflect_value * (reflection_loss / tot_samples);
 	}
@@ -316,7 +360,7 @@ vec3 c_scene::raycast(const ray & r) const
 		ray r_refr{ pi_internal, refr_vec };
 		r_refr.m_depth = r.m_depth + 1;
 		r_refr.in_air = !r.in_air;
-		vec3 transmitted_value = raycast(r_refr);
+		vec3 transmitted_value = raytrace(r_refr);
 		color += transmitted_value * transmission_loss;
 	}
 

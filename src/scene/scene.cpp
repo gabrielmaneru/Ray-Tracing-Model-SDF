@@ -211,7 +211,7 @@ vec3 c_scene::raycast(const ray & r) const
 	const vec3 ray_dir = glm::normalize(r.m_direction);
 	const vec3 pi = r.get_point(hit.m_time);
 	vec3 normal = shape->m_shape->get_normal(r, hit, pi);
-	if (r.in_air && glm::dot(normal, ray_dir) > 0.0f)
+	if (glm::dot(normal, ray_dir) > 0.0f)
 		normal = -normal;
 	const vec3 pi_external = pi + m_epsilon * normal;
 
@@ -270,7 +270,7 @@ vec3 c_scene::raycast(const ray & r) const
 	// Get reflection/transmission data
 	const float cosI = glm::dot(-ray_dir, normal);
 	const vec3 refr_vec = glm::refract(ray_dir, normal, n_ratio);
-	const float reflection_coeff = glm::length2(refr_vec) == 0.0f ? 1.0f : compute_reflectance(n_ratio, u_ratio, cosI);
+	float reflection_coeff = glm::length2(refr_vec) == 0.0f ? 1.0f : compute_reflectance(n_ratio, u_ratio, cosI);
 	const float transmission_coeff = 1.0f - reflection_coeff;
 	const float reflection_loss = reflection_coeff * shape->m_mat.m_specular_reflection;
 	const float transmission_loss = transmission_coeff * shape->m_mat.m_specular_reflection;
@@ -296,7 +296,7 @@ vec3 c_scene::raycast(const ray & r) const
 	// Add transmission value
 	if (transmission_loss != 0.0f) // TODO
 	{
-		vec3 pi_internal = pi + m_epsilon * ray_dir;
+		vec3 pi_internal = pi + m_epsilon * refr_vec;
 		ray r_refr{ pi_internal, refr_vec };
 		r_refr.m_depth = r.m_depth + 1;
 		r_refr.in_air = !r.in_air;

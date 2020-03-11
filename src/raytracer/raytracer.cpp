@@ -23,9 +23,9 @@ void c_raytracer::thread_job(int id, thread_data data)
 		// Retrieve the near plane target
 		int x = p % data.width, y = p / data.width;
 		vec3 target = data.p_0 + static_cast<float>(x)*data.u_scr - static_cast<float>(y)*data.v_scr;
-
+		
 		// Raytrace the scene
-		vec3 color = scene->raycast({ data.eye,target - data.eye });
+		vec3 color = scene->raytrace_pixel(target, data.u_scr, data.v_scr,data.eye);
 		color = glm::clamp(color, 0.0f, 1.0f);
 
 		// Store the pixel

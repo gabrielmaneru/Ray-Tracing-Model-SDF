@@ -9,6 +9,7 @@ class c_scene
 {
 public:
 	bool init(std::string scene_path);
+	vec3 raytrace_pixel(const vec3& px_center, const vec3& px_width, const vec3& px_height, const vec3& eye)const;
 	vec3 raycast(const ray& r)const;
 	void shutdown();
 

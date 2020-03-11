@@ -168,6 +168,22 @@ bool c_scene::init(std::string scene_path)
 	return true;
 }
 
+vec3 c_scene::raytrace_pixel(const vec3 & px_center, const vec3 & px_width, const vec3 & px_height, const vec3 & eye) const
+{
+	const int AA = 16;
+	const float AA_step = 1.0f / AA;
+	float
+		s_x = 0.5f * AA_step - 0.5f,
+		s_y = 0.5f * AA_step - 0.5f;
+
+	vec3 color = glm::zero<vec3>();
+	for (int x = 0; x < AA; ++x, s_x += AA_step)
+		for(int y = 0; y < AA; ++y, s_y += AA_step)
+			color += scene->raycast({ eye,px_center + s_x * px_width - s_y * px_height - eye });
+
+	return color / (float)(AA*AA);
+}
+
 
 float compute_reflectance(const float n_ratio, const float u_ratio, const float cosI)
 {

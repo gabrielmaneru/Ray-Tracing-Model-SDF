@@ -14,6 +14,7 @@ Author: Gabriel Ma�eru - gabriel.m
 #include "mesh.h"
 #include <string>
 #include <fstream>
+#include <functional>
 #include <utils/math_utils.h>
 
 c_scene* scene = new c_scene;
@@ -205,26 +206,36 @@ vec3 c_scene::raytrace_pixel(const vec3 & px_center, const vec3 & px_width, cons
 	}
 	else
 	{
-		const float step = 0.25f;
 
-		auto adaptive_4x4 = [&](const vec3 & sec_center, const vec3 & sec_width, const vec3 & sec_height)->void
+		std::function<vec3(const vec3&, const vec3&,const vec3&,const int depth)>  adaptive_4x4 = [&](const vec3 & sec_center, const vec3 & sec_width, const vec3 & sec_height, const int depth)->vec3
 		{
-			vec3 color = glm::zero<vec3>();
-		};
+			vec3 center[]{
+				px_center - .25f * px_width + .25f * px_height,
+				px_center - .25f * px_width - .25f * px_height,
+				px_center + .25f * px_width + .25f * px_height,
+				px_center + .25f * px_width - .25f * px_height
+			};
 
+			vec3 color[4];
+			for(int i=0; i<4;++i)
+				color[i]= scene->raytrace({ eye, center[i] - eye });
 
-		float s_x = 0.5f * AA_step - 0.5f;
-		for (int x = 0; x < AA; ++x, s_x += AA_step)
-		{
-			float s_y = 0.5f * AA_step - 0.5f;
-			for (int y = 0; y < AA; ++y, s_y += AA_step)
+			vec3 av_color = (color[0] + color[1] + color[2] + color[3])*.25f;
+
+			if (depth == m_aa_recursion_depth)
+				return av_color;
+
+			vec4 diffs;
+			for (int i = 0; i < 4; ++i)
 			{
-				const vec3 new_target = px_center + s_x * px_width - s_y * px_height;
-				color += scene->raytrace({ eye, new_target - eye });
+				float diff = glm::length2(av_color - color[i]);
+				if(diff > 0.05f)
+					color[i] = adaptive_4x4(center[i], sec_width*0.5f, sec_height*0.5f,depth+1);
 			}
-		}
+			return (color[0] + color[1] + color[2] + color[3])*.25f;
 
-		return color / static_cast<float>(AA*AA);
+		};
+		return adaptive_4x4(px_center, px_width, px_height,1);
 	}
 }
 

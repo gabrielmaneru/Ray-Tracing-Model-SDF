@@ -188,6 +188,9 @@ vec3 c_scene::raytrace_pixel(const vec3 & px_center, const vec3 & px_width, cons
 {
 	if (m_aa_recursion_depth == 1) // Non-Adaptive
 	{
+		if (m_aa_section_samples == 1)
+			return scene->raytrace({ eye,px_center - eye });
+
 		const int samples = m_aa_section_samples;
 		float step = 1.0f / samples;
 		vec3 color = glm::zero<vec3>();
@@ -245,7 +248,11 @@ float compute_reflectance(const float n_ratio, const float u_ratio, const float 
 	float E_perp_ratio, E_para_ratio;
 	if (n_ratio > 0.01f)
 	{
-		const float root = glm::sqrt(1.0f - n_ratio * n_ratio*(1 - cosI * cosI));
+		const float in = 1.0f - n_ratio * n_ratio*(1 - cosI * cosI);
+		if (in < 0.0f)
+			return 1.0f;
+
+		const float root = glm::sqrt(in);
 		E_perp_ratio = (n_ratio*cosI - u_ratio * root) / (n_ratio*cosI + u_ratio * root);
 		E_para_ratio = (u_ratio*cosI - n_ratio * root) / (u_ratio*cosI + n_ratio * root);
 	}
@@ -279,10 +286,10 @@ vec3 c_scene::raytrace(const ray & r) const
 
 	// Extract raycast data
 	const float distance = glm::length(r.m_direction) * hit.m_time;
-	const vec3 ray_dir = glm::normalize(r.m_direction);
+	const vec3 n_ray_dir = glm::normalize(r.m_direction);
 	const vec3 pi = r.get_point(hit.m_time);
 	vec3 normal = shape->m_shape->get_normal(r, hit, pi);
-	if (glm::dot(normal, ray_dir) > 0.0f)
+	if (glm::dot(normal, n_ray_dir) > 0.0f)
 		normal = -normal;
 	const vec3 pi_external = pi + m_epsilon * normal;
 
@@ -292,7 +299,7 @@ vec3 c_scene::raytrace(const ray & r) const
 	const vec3 attenuation = r.in_air ? m_air.m_attenuation : shape->m_mat.m_attenuation;
 
 	// Compute local illumination model
-	const vec3 view_vec = glm::normalize(m_camera->get_eye() - pi);
+	const vec3 n_view_vec = glm::normalize(m_camera->get_eye() - pi);
 	vec3 diffuse_intensity = m_ambient;
 	vec3 specular_intensity = glm::zero<vec3>();
 	for (const light& light : m_lights)
@@ -332,16 +339,15 @@ vec3 c_scene::raytrace(const ray & r) const
 		const vec3 reflect_vec = glm::reflect(-light_vec, normal);
 		const vec3 light_intensity = light.m_intensity * shadow_factor;
 		diffuse_intensity  += light_intensity * glm::max(glm::dot(normal, light_vec), 0.0f);
-		specular_intensity += light_intensity * glm::max(glm::pow(glm::dot(reflect_vec, view_vec), shape->m_mat.m_specular_exponent), 0.0f);
+		specular_intensity += light_intensity * glm::max(glm::pow(glm::dot(reflect_vec, n_view_vec), shape->m_mat.m_specular_exponent), 0.0f);
 	}
 	diffuse_intensity *= shape->m_mat.m_diffuse_color;
 	specular_intensity *= shape->m_mat.m_specular_reflection;
 	vec3 color = diffuse_intensity + specular_intensity;
 
 	// Get reflection/transmission data
-	const float cosI = glm::dot(-ray_dir, normal);
-	const vec3 refr_vec = glm::refract(ray_dir, normal, n_ratio);
-	float reflection_coeff = glm::length2(refr_vec) == 0.0f ? 1.0f : compute_reflectance(n_ratio, u_ratio, cosI);
+	const float cosI = glm::dot(-n_ray_dir, normal);
+	const float reflection_coeff = compute_reflectance(n_ratio, u_ratio, cosI);
 	const float transmission_coeff = 1.0f - reflection_coeff;
 	const float reflection_loss = reflection_coeff * shape->m_mat.m_specular_reflection;
 	const float transmission_loss = transmission_coeff * shape->m_mat.m_specular_reflection;
@@ -351,7 +357,7 @@ vec3 c_scene::raytrace(const ray & r) const
 	// Add reflection value
 	if (reflection_loss != 0.0f && m_rough_reflection_samples > 0)
 	{
-		const vec3 reflect_vec = glm::reflect(ray_dir, normal);
+		const vec3 reflect_vec = glm::reflect(n_ray_dir, normal);
 		const int tot_samples = (shape->m_mat.m_roughness == 0.0f) ? 1 : m_rough_reflection_samples;
 		vec3 reflect_value = glm::zero<vec3>();
 		for (int i = 0; i < tot_samples; i++)
@@ -359,6 +365,7 @@ vec3 c_scene::raytrace(const ray & r) const
 			const vec3 offset = (i==0)?glm::zero<vec3>():rand_ball(shape->m_mat.m_roughness);
 			ray r_refl{ pi_external, reflect_vec + offset };
 			r_refl.m_depth = r.m_depth + 1;
+			r_refl.in_air = r.in_air;
 			reflect_value += raytrace(r_refl);
 		}
 		color += reflect_value * (reflection_loss / tot_samples);
@@ -367,6 +374,7 @@ vec3 c_scene::raytrace(const ray & r) const
 	// Add transmission value
 	if (transmission_loss != 0.0f) // TODO
 	{
+		const vec3 refr_vec = glm::refract(n_ray_dir, normal, n_ratio);
 		vec3 pi_internal = pi + m_epsilon * refr_vec;
 		ray r_refr{ pi_internal, refr_vec };
 		r_refr.m_depth = r.m_depth + 1;

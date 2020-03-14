@@ -150,6 +150,7 @@
     <ClCompile Include="src\raytracer\ray.cpp" />
     <ClCompile Include="src\raytracer\raytracer.cpp" />
     <ClCompile Include="src\raytracer\screen.cpp" />
+    <ClCompile Include="src\raytracer\tracer.cpp" />
     <ClCompile Include="src\scene\box.cpp" />
     <ClCompile Include="src\scene\camera.cpp" />
     <ClCompile Include="src\scene\ellipsoid.cpp" />
@@ -410,6 +411,7 @@
     <ClInclude Include="src\raytracer\ray.h" />
     <ClInclude Include="src\raytracer\raytracer.h" />
     <ClInclude Include="src\raytracer\screen.h" />
+    <ClInclude Include="src\raytracer\tracer.h" />
     <ClInclude Include="src\scene\box.h" />
     <ClInclude Include="src\scene\camera.h" />
     <ClInclude Include="src\scene\ellipsoid.h" />

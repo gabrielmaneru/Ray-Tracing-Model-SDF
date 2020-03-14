@@ -8,6 +8,7 @@
 class c_scene
 {
 public:
+	std::pair<ray_hit, const shape_data*> ray_intersect(const ray& r)const;
 	bool init(std::string scene_path);
 	vec3 raytrace_pixel(const vec3& px_center, const vec3& px_width, const vec3& px_height, const vec3& eye)const;
 	vec3 raytrace(const ray& r)const;
@@ -15,21 +16,12 @@ public:
 
 
 	// Scene Properties
-	struct shape_data
-	{
-		shape* m_shape;
-		material m_mat;
-	};
 	std::vector<shape_data> m_shapes;
 	std::vector<light> m_lights;
 	std::string m_scene_path;
 	camera* m_camera{ nullptr };
 	vec3 m_ambient{0.f};
-	struct{
-		float m_electric_permittivity{ 1.f };
-		float m_magnetic_permeability{ 1.f };
-		vec3 m_attenuation{ 1.f };
-	}m_air;
+	vec3 m_air_attenuation{ 1.f };
 
 	// Scene Config
 	float m_epsilon{ 0.0f };

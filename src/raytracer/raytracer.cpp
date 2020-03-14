@@ -53,7 +53,7 @@ bool c_raytracer::init(size_t width, size_t height)
 	camera * pcam = scene->m_camera;
 	float half_width = static_cast<float>(width)*0.5f;
 	float half_height = static_cast<float>(height)*0.5f;
-	data.eye = pcam->get_eye();
+	data.eye = pcam->m_eye;
 	data.u_scr = pcam->m_u_vector / half_width;
 	data.v_scr = pcam->m_v_vector / half_height;
 	data.p_0 = pcam->m_origin + (0.5f - half_width)*data.u_scr - (0.5f - half_height)*data.v_scr;

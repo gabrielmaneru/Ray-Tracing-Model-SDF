@@ -29,3 +29,8 @@ struct shape
 		return hit.m_temp_normal;
 	}
 };
+struct shape_data
+{
+	shape* m_shape;
+	material m_mat;
+};

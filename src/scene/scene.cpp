@@ -12,10 +12,10 @@ Author: Gabriel Ma�eru - gabriel.m
 #include "polygon.h"
 #include "ellipsoid.h"
 #include "mesh.h"
+#include <raytracer/tracer.h>
 #include <string>
 #include <fstream>
 #include <functional>
-#include <utils/math_utils.h>
 
 c_scene* scene = new c_scene;
 
@@ -23,8 +23,25 @@ vec3 parse_vec3(std::string& line);
 float parse_flt(std::string& line);
 material parse_mat(std::string& line);
 
+std::pair<ray_hit, const shape_data*> c_scene::ray_intersect(const ray & r)const
+{
+	ray_hit hit; const shape_data* shape{ nullptr };
+	for (auto& s : m_shapes)
+	{
+		ray_hit local = s.m_shape->ray_intersect(r);
+		if (local.m_has_hit && local.m_time < hit.m_time)
+		{
+			hit = local;
+			shape = &s;
+		}
+	}
+	return { hit,shape };
+}
+
 bool c_scene::init(std::string scene_path)
 {
+	float air_electric{ 1.0f }, air_magnetic{ 1.0f };
+
 	// Read scene file
 	std::ifstream file;
 	file.open(scene_path);
@@ -116,9 +133,10 @@ bool c_scene::init(std::string scene_path)
 				m_ambient = parse_vec3(line);
 			else if (line.substr(0, 4) == "AIR ")
 			{
-				m_air.m_electric_permittivity = parse_flt(line);
-				m_air.m_magnetic_permeability = parse_flt(line);
-				m_air.m_attenuation = parse_vec3(line);
+				parse_flt(line);
+				air_electric = parse_flt(line);
+				air_magnetic = parse_flt(line);
+				m_air_attenuation = parse_vec3(line);
 			}
 			else if (line.substr(0, 7) == "CAMERA ")
 			{
@@ -131,6 +149,17 @@ bool c_scene::init(std::string scene_path)
 		}
 		assert(m_camera != nullptr);
 		file.close();
+	}
+
+	// Apply air properties (usually useless)
+	float refr_air = glm::sqrt(air_electric*air_magnetic);
+	for (auto& s : m_shapes)
+	{
+		s.m_mat.m_magnetic_permeability /= air_magnetic;
+		s.m_mat.m_refractive_index /= refr_air;
+
+		s.m_mat.m_inv_magnetic_permeability = 1.0f / s.m_mat.m_magnetic_permeability;
+		s.m_mat.m_inv_refractive_index = 1.0f / s.m_mat.m_refractive_index;
 	}
 
 	// Read config file
@@ -209,7 +238,6 @@ vec3 c_scene::raytrace_pixel(const vec3 & px_center, const vec3 & px_width, cons
 	}
 	else
 	{
-
 		std::function<vec3(const vec3&, const vec3&,const vec3&,const int depth)>  adaptive_4x4 = [&](const vec3 & sec_center, const vec3 & sec_width, const vec3 & sec_height, const int depth)->vec3
 		{
 			vec3 center[]{
@@ -228,7 +256,6 @@ vec3 c_scene::raytrace_pixel(const vec3 & px_center, const vec3 & px_width, cons
 			if (depth == m_aa_recursion_depth)
 				return av_color;
 
-			vec4 diffs;
 			for (int i = 0; i < 4; ++i)
 			{
 				float diff = glm::length2(av_color - color[i]);
@@ -242,26 +269,6 @@ vec3 c_scene::raytrace_pixel(const vec3 & px_center, const vec3 & px_width, cons
 	}
 }
 
-
-float compute_reflectance(const float n_ratio, const float u_ratio, const float cosI)
-{
-	float E_perp_ratio, E_para_ratio;
-	if (n_ratio > 0.01f)
-	{
-		const float in = 1.0f - n_ratio * n_ratio*(1 - cosI * cosI);
-		if (in < 0.0f)
-			return 1.0f;
-
-		const float root = glm::sqrt(in);
-		E_perp_ratio = (n_ratio*cosI - u_ratio * root) / (n_ratio*cosI + u_ratio * root);
-		E_para_ratio = (u_ratio*cosI - n_ratio * root) / (u_ratio*cosI + n_ratio * root);
-	}
-	else
-		E_perp_ratio = -1.f, E_para_ratio = 1.f;
-
-	return .5f*(E_perp_ratio*E_perp_ratio + E_para_ratio * E_para_ratio);
-}
-
 vec3 c_scene::raytrace(const ray & r) const
 {
 	// Check if reached maximum reflection depth
@@ -269,126 +276,25 @@ vec3 c_scene::raytrace(const ray & r) const
 		return glm::zero<vec3>();
 
 	// Raycast the scene
-	ray_hit hit; const shape_data* shape{ nullptr };
-	for (auto& s : m_shapes)
-	{
-		ray_hit local = s.m_shape->ray_intersect(r);
-		if (local.m_has_hit && local.m_time < hit.m_time)
-		{
-			hit = local;
-			shape = &s;
-		}
-	}
+	auto result = ray_intersect(r);
 
 	// Check if not hitted anything
-	if (!hit.m_has_hit)
+	if (!result.first.m_has_hit)
 		return glm::zero<vec3>();
 
-	// Extract raycast data
-	const float distance = glm::length(r.m_direction) * hit.m_time;
-	const vec3 n_ray_dir = glm::normalize(r.m_direction);
-	const vec3 pi = r.get_point(hit.m_time);
-	vec3 normal = shape->m_shape->get_normal(r, hit, pi);
-	if (glm::dot(normal, n_ray_dir) > 0.0f)
-		normal = -normal;
-	const vec3 pi_external = pi + m_epsilon * normal;
+	// Create the tracer
+	const tracer tr{ r,result.first, result.second };
 
-	// Extract medium data
-	const float n_ratio = r.in_air ? shape->m_mat.m_inv_refractive_index : shape->m_mat.m_refractive_index;
-	const float u_ratio = r.in_air ? shape->m_mat.m_inv_magnetic_permeability : shape->m_mat.m_magnetic_permeability;
-	const vec3 attenuation = r.in_air ? m_air.m_attenuation : shape->m_mat.m_attenuation;
-
-	// Compute local illumination model
-	const vec3 n_view_vec = glm::normalize(m_camera->get_eye() - pi);
-	vec3 diffuse_intensity = m_ambient;
-	vec3 specular_intensity = glm::zero<vec3>();
-	for (const light& light : m_lights)
-	{
-		// Precompute light data
-		vec3 light_vec = light.m_position - pi;
-		const float light_distance_2 = glm::length2(light_vec);
-
-		// Compute shadow factor
-		int hit_count = 0;
-		for (int i = 0; i < m_shadow_samples; i++)
-		{
-			const vec3 offset = (i == 0) ? glm::zero<vec3>() : rand_ball(light.m_radius);
-			ray r_shad{ pi_external, light_vec + offset };
-			bool hitted{ false };
-			for (auto& s : m_shapes)
-			{
-				const ray_hit local = s.m_shape->ray_intersect(r_shad);
-				if (local.m_has_hit)
-				{
-					const float local_distance_2 = glm::length2(r_shad.get_point(local.m_time) - pi);
-					if (local_distance_2 < light_distance_2)
-					{
-
-						hitted = true;
-						break;
-					}
-				}
-			}
-			if (!hitted)
-				++hit_count;
-		}
-		const float shadow_factor = (m_shadow_samples == 0) ? 1.0f : hit_count / (float)m_shadow_samples;
-
-		// Compute diffuse and specular intensities
-		light_vec /= glm::sqrt(light_distance_2);
-		const vec3 reflect_vec = glm::reflect(-light_vec, normal);
-		const vec3 light_intensity = light.m_intensity * shadow_factor;
-		diffuse_intensity  += light_intensity * glm::max(glm::dot(normal, light_vec), 0.0f);
-		specular_intensity += light_intensity * glm::max(glm::pow(glm::dot(reflect_vec, n_view_vec), shape->m_mat.m_specular_exponent), 0.0f);
-	}
-	diffuse_intensity *= shape->m_mat.m_diffuse_color;
-	specular_intensity *= shape->m_mat.m_specular_reflection;
-	vec3 color = diffuse_intensity + specular_intensity;
-
-	// Get reflection/transmission data
-	const float cosI = glm::dot(-n_ray_dir, normal);
-	const float reflection_coeff = compute_reflectance(n_ratio, u_ratio, cosI);
-	const float transmission_coeff = 1.0f - reflection_coeff;
-	const float reflection_loss = reflection_coeff * shape->m_mat.m_specular_reflection;
-	const float transmission_loss = transmission_coeff * shape->m_mat.m_specular_reflection;
-	const float absortion = 1 - reflection_loss - transmission_loss;
-	color *= absortion;
-
-	// Add reflection value
-	if (reflection_loss != 0.0f && m_rough_reflection_samples > 0)
-	{
-		const vec3 reflect_vec = glm::reflect(n_ray_dir, normal);
-		const int tot_samples = (shape->m_mat.m_roughness == 0.0f) ? 1 : m_rough_reflection_samples;
-		vec3 reflect_value = glm::zero<vec3>();
-		for (int i = 0; i < tot_samples; i++)
-		{
-			const vec3 offset = (i==0)?glm::zero<vec3>():rand_ball(shape->m_mat.m_roughness);
-			ray r_refl{ pi_external, reflect_vec + offset };
-			r_refl.m_depth = r.m_depth + 1;
-			r_refl.in_air = r.in_air;
-			reflect_value += raytrace(r_refl);
-		}
-		color += reflect_value * (reflection_loss / tot_samples);
-	}
-
-	// Add transmission value
-	if (transmission_loss != 0.0f) // TODO
-	{
-		const vec3 refr_vec = glm::refract(n_ray_dir, normal, n_ratio);
-		vec3 pi_internal = pi + m_epsilon * refr_vec;
-		ray r_refr{ pi_internal, refr_vec };
-		r_refr.m_depth = r.m_depth + 1;
-		r_refr.in_air = !r.in_air;
-		vec3 transmitted_value = raytrace(r_refr);
-		color += transmitted_value * transmission_loss;
-	}
-
-	// Apply medium attenuation
-	color *= glm::pow(attenuation, vec3{ distance });
-
+	// Compute the pixel color
+	vec3 color = tr.compute_local_illumination();
+	color     += tr.compute_reflection_value();
+	color     += tr.compute_transmission_value();
+	color     *= tr.compute_attenuation();
+	
 	// Return final color
 	return color;
 }
+
 void c_scene::shutdown()
 {
 	for (auto& s : m_shapes)
@@ -436,5 +342,5 @@ material parse_mat(std::string& line)
 	float mag = parse_flt(line);
 	float rou = parse_flt(line);
 	float refr = glm::sqrt(elec*mag);
-	return{ dif, refl, exp, att, rou, mag, 1.0f / mag, refr, 1.0f / refr };
+	return{ dif, refl, exp, att, rou, mag, 0.0f, refr, 0.0f };
 }

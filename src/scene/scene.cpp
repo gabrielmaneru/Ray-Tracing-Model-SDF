@@ -236,7 +236,8 @@ vec3 c_scene::raytrace_pixel(const vec3 & px_center, const vec3 & px_width, cons
 		}
 		return color / static_cast<float>(samples*samples);
 	}
-	else
+
+	else // Adaptive
 	{
 		std::function<vec3(const vec3&, const vec3&,const vec3&,const int depth)>  adaptive_4x4 = [&](const vec3 & sec_center, const vec3 & sec_width, const vec3 & sec_height, const int depth)->vec3
 		{
@@ -286,10 +287,10 @@ vec3 c_scene::raytrace(const ray & r) const
 	const tracer tr{ r,result.first, result.second };
 
 	// Compute the pixel color
-	vec3 color = tr.compute_local_illumination();
-	color     += tr.compute_reflection_value();
-	color     += tr.compute_transmission_value();
-	color     *= tr.compute_attenuation();
+	vec3 color  = tr.compute_local_illumination();
+	     color += tr.compute_reflection_value();
+	     color += tr.compute_transmission_value();
+	     color *= tr.compute_attenuation();
 	
 	// Return final color
 	return color;

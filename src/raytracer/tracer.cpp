@@ -143,6 +143,7 @@ vec3 tracer::compute_reflection_value() const
 
 vec3 tracer::compute_transmission_value() const
 {
+	// Check if there is a transmission
 	if (m_transmission_loss == 0.0f)
 		return {};
 

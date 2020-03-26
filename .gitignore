@@ -16,3 +16,9 @@ Raytracer/obj/
 *.ilk
 
 *.db
+
+*.user
+
+SDF/obj/
+
+SDF/.vs/

@@ -36,7 +36,14 @@ bool shader_program::is_valid()const
 void shader_program::recompile()
 {
 	try {
-		compile_program();
+		if (m_handle > 0)
+			GL_CALL(glDeleteProgram(m_handle));
+		m_handle = 0;
+		m_linked = false;
+
+
+		if (create_handle())
+			compile_program();
 	}
 	catch (const std::string & log) { std::cout << log; }
 }

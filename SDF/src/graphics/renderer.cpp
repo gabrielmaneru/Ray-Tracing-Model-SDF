@@ -10,6 +10,8 @@ Author: Gabriel Mañeru - gabriel.m
 #include "shader_program.h"
 #include "camera.h"
 #include "gl_error.h"
+#include <platform/input.h>
+#include <GLFW/glfw3.h>
 #include <GL/gl3w.h>
 #include <iostream>
 
@@ -56,11 +58,18 @@ void c_renderer::draw()
 	m_camera->update();
 	GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 	GL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
-	m_sdf_shader->use();
-	m_sdf_shader->set_uniform("invP", glm::inverse(m_camera->m_proj));
-	m_sdf_shader->set_uniform("invV", glm::inverse(m_camera->m_view));
-	m_sdf_shader->set_uniform("eye", m_camera->m_eye);
-	GL_CALL(glDrawArrays(GL_TRIANGLES, 0, 3));
+	if (m_sdf_shader->is_valid())
+	{
+		m_sdf_shader->use();
+		m_sdf_shader->set_uniform("invP", glm::inverse(m_camera->m_proj));
+		m_sdf_shader->set_uniform("invV", glm::inverse(m_camera->m_view));
+		m_sdf_shader->set_uniform("eye", m_camera->m_eye);
+		GL_CALL(glDrawArrays(GL_TRIANGLES, 0, 3));
+	}
+	if (input->is_key_down(GLFW_KEY_LEFT_CONTROL) && input->is_key_triggered(GLFW_KEY_R))
+	{
+		m_sdf_shader->recompile();
+	}
 }
 
 void c_renderer::shutdown()

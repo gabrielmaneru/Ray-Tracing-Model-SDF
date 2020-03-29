@@ -23,7 +23,7 @@ float sdSphere(in vec3 point, in float rad)
 float sdBox(in vec3 point, in vec3 scale)
 {
 	vec3 diff = abs(point)-scale;
-	return abs(min(max(diff.x,max(diff.y,diff.z)),0.0) + length(max(diff,0.0)));
+	return abs(min(max(diff.x,max(diff.y,diff.z)),0.0) + length(max(diff,0.0))) - 0.1;
 }
 
 
@@ -111,6 +111,18 @@ vec3 calcNormal(const in vec3 point)
 					  e.yxy*distance_scene( point + e.yxy ) + 
 					  e.xxx*distance_scene( point + e.xxx ) );
 }
+float calcShadow(in vec3 shad_origin, in vec3 l_vec)
+{
+	float l_dist_2 = dot(l_vec,l_vec);
+	vec3 l_dir = normalize(l_vec);
+	float shad_time = calcTime(shad_origin, l_dir);
+
+	if(shad_time < 0.0)
+		return 1.0;
+	else if(shad_time*shad_time > l_dist_2)
+		return 1.0;
+	return 0.0;
+}
 vec3 render(in vec3 ray_origin, in vec3 ray_dir)
 {
 	float t = calcTime(ray_origin, ray_dir);
@@ -121,18 +133,23 @@ vec3 render(in vec3 ray_origin, in vec3 ray_dir)
     vec3 p = ray_origin + ray_dir * t;
     vec3 n = calcNormal(p);
 
-	const vec3 mate = vec3(0.3);
-	const vec3 l = normalize(vec3(-0.1, 0.3, 0.6));
+	const vec3 l_pos = vec3(-2, 3, 4);
+	vec3 l_vec = l_pos-p;
+
+	vec3 p_ext = p + n * 0.01;
+	float shad = calcShadow(p_ext, l_vec);
+
+	vec3 l_dir = normalize(l_vec);
+    vec3  hal = normalize( l_dir-ray_dir );
 	const float spe_exp = 64.0;
-    vec3  hal = normalize( l-ray_dir );
 
-	float shad = 1.0;
 
-    float dif = shad * max( dot( n, l ), 0.0 );
+    float dif = shad * max( dot( n, l_dir ), 0.0 );
 	float spe = shad * pow( max( dot( n, hal ), 0.0),spe_exp);
 
+	const vec3 mate = vec3(0.7,0.4,0.3);
 	vec3 col = mate * dif + spe;
-	return col;
+	return vec3(col);
 }
 
 

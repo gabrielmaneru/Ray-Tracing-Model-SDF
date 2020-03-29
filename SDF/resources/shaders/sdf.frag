@@ -111,7 +111,7 @@ vec3 calcNormal(const in vec3 point)
 					  e.yxy*distance_scene( point + e.yxy ) + 
 					  e.xxx*distance_scene( point + e.xxx ) );
 }
-float calcShadow(in vec3 shad_origin, in vec3 l_vec)
+float calcShadowHard(in vec3 shad_origin, in vec3 l_vec)
 {
 	float l_dist_2 = dot(l_vec,l_vec);
 	vec3 l_dir = normalize(l_vec);
@@ -123,6 +123,64 @@ float calcShadow(in vec3 shad_origin, in vec3 l_vec)
 		return 1.0;
 	return 0.0;
 }
+float calcShadowSoft1(in vec3 shad_origin, in vec3 l_vec)
+{
+	const float shad_force=15;
+	const float max_it = 32;
+	const float min_dist=0.01;
+
+	float max_dist=dot(l_vec,l_vec);
+	vec3 l_dir = normalize(l_vec);
+
+	float res = 1.0;
+    float ray_dist = 0.1;
+    
+    for( int i=0; i<max_it; i++ )
+    {
+		float dist = distance_scene( shad_origin + l_dir*ray_dist );
+
+        res = min( res, shad_force*dist/ray_dist );
+        
+        ray_dist += dist;
+        
+        if( res<min_dist
+		|| ray_dist>max_dist )
+			break;
+        
+    }
+    return clamp( res, 0.0, 1.0 );
+}
+float calcShadowSoft2(in vec3 shad_origin, in vec3 l_vec)
+{
+	const float shad_force=15.0;
+	const float max_it = 32;
+	const float min_dist=0.01;
+
+	float max_dist=dot(l_vec,l_vec);
+	vec3 l_dir = normalize(l_vec);
+
+	float res = 1.0;
+    float ray_dist = 0.1;
+    float ph = 1e10;
+    
+    for( int i=0; i<max_it; i++ )
+    {
+		float dist = distance_scene( shad_origin + l_dir*ray_dist );
+
+		float y = (i==0) ? 0.0 : dist*dist/(2.0*ph); 
+        float d = sqrt(dist*dist-y*y);
+        res = min( res, shad_force*d/max(0.0,ray_dist-y) );
+        ph = dist;
+        
+        ray_dist += dist;
+        
+        if( res<min_dist
+		|| ray_dist>max_dist )
+			break;
+        
+    }
+    return clamp( res, 0.0, 1.0 );
+}
 vec3 render(in vec3 ray_origin, in vec3 ray_dir)
 {
 	float t = calcTime(ray_origin, ray_dir);
@@ -133,11 +191,13 @@ vec3 render(in vec3 ray_origin, in vec3 ray_dir)
     vec3 p = ray_origin + ray_dir * t;
     vec3 n = calcNormal(p);
 
-	const vec3 l_pos = vec3(-2, 3, 4);
+	const vec3 l_pos = vec3(-2, 5, 4);
 	vec3 l_vec = l_pos-p;
 
 	vec3 p_ext = p + n * 0.01;
-	float shad = calcShadow(p_ext, l_vec);
+	//float shad = calcShadowHard(p_ext, l_vec);
+	//float shad = calcShadowSoft1(p_ext, l_vec);
+	float shad = calcShadowSoft2(p_ext, l_vec);
 
 	vec3 l_dir = normalize(l_vec);
     vec3  hal = normalize( l_dir-ray_dir );

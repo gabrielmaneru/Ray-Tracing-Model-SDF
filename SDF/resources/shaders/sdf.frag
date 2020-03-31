@@ -12,10 +12,7 @@ uniform vec3 eye;
 //    
 //   ***   Shapes   ***
 //  
-float sdPlane(in float height)
-{
-	return abs(height);
-} 
+
 float sdSphere(in vec3 point, in float rad)
 {
 	return length(point)-rad;
@@ -25,7 +22,11 @@ float sdBox(in vec3 point, in vec3 scale)
 	vec3 diff = abs(point)-scale;
 	return abs(min(max(diff.x,max(diff.y,diff.z)),0.0) + length(max(diff,0.0))) - 0.1;
 }
-
+float sdCylinder(in vec3 point, in float height, in float rad)
+{
+	vec2 d = abs(vec2(length(point.xz),point.y)) - vec2(height,rad);
+	return min(max(d.x,d.y),0.0) + length(max(d,0.0));
+}
 
 
 //    
@@ -34,44 +35,53 @@ float sdBox(in vec3 point, in vec3 scale)
 
 struct object
 {
-	int type;
-	float data[6];
+	int operation;
+	vec3 data1;
+	vec3 data2;
 };
+uniform object scene_data[100];
+uniform int draw_list = 0;
 
-float distance_scene(vec3 point)
+float get_distance(in int id, in vec3 point)
 {
-	const object scene_data[] = object[](
-		object(0,float[](-3,   0,0,0,0,0)),
-		object(1,float[](-2,0,0,1,   0,0)),
-		object(2,float[](2,0,0,1,1,1))
-	);
-
-	float min_dist = 1.0/0.0;;
-	for(int i = 0; i < 3; ++i)
-	{
-		vec3 data_1 = vec3(
-				scene_data[i].data[0],
-				scene_data[i].data[1],
-				scene_data[i].data[2]);
-		vec3 data_2 = vec3(
-				scene_data[i].data[3],
-				scene_data[i].data[4],
-				scene_data[i].data[5]);
-
-		switch(scene_data[i].type)
+	switch(scene_data[id].operation)
 		{
-		case 0:
-			min_dist=min(min_dist, sdPlane(point.y - data_1.x));
-			break;
 		case 1:
-			min_dist=min(min_dist, sdSphere(point - data_1, data_2.x));
-			break;
+			return sdSphere(point - scene_data[id].data1, scene_data[id].data2.x);
 		case 2:
-			min_dist=min(min_dist, sdBox(point - data_1, data_2));
+			return sdBox(point - scene_data[id].data1, scene_data[id].data2);
+		case 3:
+			return sdCylinder(point - scene_data[id].data1, scene_data[id].data2.x,scene_data[id].data2.y);
 		default:
 			break;
 		}
+	return 1.0/0.0;
+}
+float make_operation(in int id, in vec3 point)
+{
+	if(scene_data[id].operation < 0)
+	{
+		float d1 = get_distance(int(scene_data[id].data1.x)+draw_list, point);
+		float d2 = get_distance(int(scene_data[id].data1.y)+draw_list, point);
+		switch(scene_data[id].operation)
+			{
+			case -1:
+				return min(d1,d2);
+			case -2:
+				return max(-d1,d2);
+			case -3:
+				return max(d1,d2);
+			}
 	}
+	else
+		return get_distance(id,point);
+}
+
+float distance_scene(vec3 point)
+{
+	float min_dist = 1.0/0.0;;
+	for(int i = 0; i < draw_list; ++i)
+		min_dist=min(min_dist, make_operation(i,point));
 	return min_dist;
 }
 
@@ -80,14 +90,13 @@ float distance_scene(vec3 point)
 //    
 //   ***   Render   ***
 //    
+uniform int march_it = 100;
+uniform float min_dist = 0.001;
+uniform float max_dist = 1.0e6;
 float calcTime(in vec3 ray_origin, in vec3 ray_dir)
 {
-	const int max_it=1000;
-	const float max_dist=1.0e6;
-	const float min_dist=0.001;
-    
 	float ray_dist = 0.0;
-    for(int i = 0; i < max_it; ++i)
+    for(int i = 0; i < march_it; ++i)
 	{
     	vec3 p = ray_origin + ray_dir * ray_dist;
         float dist = distance_scene(p);
@@ -126,8 +135,6 @@ float calcShadowHard(in vec3 shad_origin, in vec3 l_vec)
 float calcShadowSoft1(in vec3 shad_origin, in vec3 l_vec)
 {
 	const float shad_force=15;
-	const float max_it = 32;
-	const float min_dist=0.01;
 
 	float max_dist=dot(l_vec,l_vec);
 	vec3 l_dir = normalize(l_vec);
@@ -135,7 +142,7 @@ float calcShadowSoft1(in vec3 shad_origin, in vec3 l_vec)
 	float res = 1.0;
     float ray_dist = 0.1;
     
-    for( int i=0; i<max_it; i++ )
+    for( int i=0; i<march_it; i++ )
     {
 		float dist = distance_scene( shad_origin + l_dir*ray_dist );
 
@@ -153,8 +160,6 @@ float calcShadowSoft1(in vec3 shad_origin, in vec3 l_vec)
 float calcShadowSoft2(in vec3 shad_origin, in vec3 l_vec)
 {
 	const float shad_force=15.0;
-	const float max_it = 32;
-	const float min_dist=0.01;
 
 	float max_dist=dot(l_vec,l_vec);
 	vec3 l_dir = normalize(l_vec);
@@ -163,7 +168,7 @@ float calcShadowSoft2(in vec3 shad_origin, in vec3 l_vec)
     float ray_dist = 0.1;
     float ph = 1e10;
     
-    for( int i=0; i<max_it; i++ )
+    for( int i=0; i<march_it; i++ )
     {
 		float dist = distance_scene( shad_origin + l_dir*ray_dist );
 
@@ -191,13 +196,13 @@ vec3 render(in vec3 ray_origin, in vec3 ray_dir)
     vec3 p = ray_origin + ray_dir * t;
     vec3 n = calcNormal(p);
 
-	const vec3 l_pos = vec3(-2, 5, 4);
+	const vec3 l_pos = vec3(-4, 4, 4);
 	vec3 l_vec = l_pos-p;
 
 	vec3 p_ext = p + n * 0.01;
-	//float shad = calcShadowHard(p_ext, l_vec);
+	float shad = calcShadowHard(p_ext, l_vec);
 	//float shad = calcShadowSoft1(p_ext, l_vec);
-	float shad = calcShadowSoft2(p_ext, l_vec);
+	//float shad = calcShadowSoft2(p_ext, l_vec);
 
 	vec3 l_dir = normalize(l_vec);
     vec3  hal = normalize( l_dir-ray_dir );

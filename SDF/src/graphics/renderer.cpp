@@ -10,6 +10,7 @@ Author: Gabriel Mañeru - gabriel.m
 #include "shader_program.h"
 #include "camera.h"
 #include "gl_error.h"
+#include "csg_scene.h"
 #include <platform/input.h>
 #include <GLFW/glfw3.h>
 #include <GL/gl3w.h>
@@ -44,12 +45,19 @@ bool c_renderer::initialize()
 	setup_gl_debug();
 
 	load_quad();
+
 	// Create shaders
 	try {
 		m_sdf_shader = new shader_program("sdf.vert", "sdf.frag");
 	}
 	catch (const std::string & log) { std::cout << log; }
+
+	// Create Camera
 	m_camera = new camera{};
+
+	// Create Scenes
+	m_scene = new csg_scene("Scene_1.txt");
+
 	return true;
 }
 
@@ -64,11 +72,24 @@ void c_renderer::draw()
 		m_sdf_shader->set_uniform("invP", glm::inverse(m_camera->m_proj));
 		m_sdf_shader->set_uniform("invV", glm::inverse(m_camera->m_view));
 		m_sdf_shader->set_uniform("eye", m_camera->m_eye);
+		for (int i = 0; i < m_scene->nodes.size(); ++i)
+		{
+			std::string s= "scene_data[";
+			s += std::to_string(i);
+			m_sdf_shader->set_uniform((s + "].operation").c_str(), m_scene->nodes[i].m_operation);
+			m_sdf_shader->set_uniform((s + "].data1").c_str(), m_scene->nodes[i].m_data1);
+			m_sdf_shader->set_uniform((s + "].data2").c_str(), m_scene->nodes[i].m_data2);
+
+		}
+		m_sdf_shader->set_uniform("draw_list", m_scene->draw_size);
+
 		GL_CALL(glDrawArrays(GL_TRIANGLES, 0, 3));
 	}
 	if (input->is_key_down(GLFW_KEY_LEFT_CONTROL) && input->is_key_triggered(GLFW_KEY_R))
 	{
 		m_sdf_shader->recompile();
+		delete m_scene;
+		m_scene = new csg_scene("Scene_1.txt");
 	}
 }
 

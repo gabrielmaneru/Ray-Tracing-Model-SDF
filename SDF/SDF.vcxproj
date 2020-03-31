@@ -149,6 +149,7 @@
     <ClCompile Include="src\core\main.cpp" />
     <ClCompile Include="src\core\session.cpp" />
     <ClCompile Include="src\graphics\camera.cpp" />
+    <ClCompile Include="src\graphics\csg_scene.cpp" />
     <ClCompile Include="src\graphics\gl_error.cpp" />
     <ClCompile Include="src\graphics\renderer.cpp" />
     <ClCompile Include="src\graphics\shader_program.cpp" />
@@ -404,6 +405,7 @@
     <ClInclude Include="extern\include\GL\glcorearb.h" />
     <ClInclude Include="src\core\session.h" />
     <ClInclude Include="src\graphics\camera.h" />
+    <ClInclude Include="src\graphics\csg_scene.h" />
     <ClInclude Include="src\graphics\gl_error.h" />
     <ClInclude Include="src\graphics\renderer.h" />
     <ClInclude Include="src\graphics\shader_program.h" />

@@ -7,12 +7,16 @@ Purpose: Renderer Manager
 Author: Gabriel Mañeru - gabriel.m
 - End Header --------------------------------------------------------*/
 #pragma once
+#include <vector>
+
 struct camera;
+struct csg_scene;
 class shader_program;
 class c_renderer
 {
 	shader_program* m_sdf_shader{nullptr};
 	camera* m_camera{nullptr};
+	csg_scene* m_scene;
 
 public:
 	bool initialize();

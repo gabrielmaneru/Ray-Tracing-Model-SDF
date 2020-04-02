@@ -56,6 +56,29 @@ csg_scene::csg_scene(std::string filename)
 					line = "";
 			}
 			nodes.push_back(node);
+			continue;
+		}
+
+		s = line.find("LIGHT=");
+		if (s < line.size())
+		{
+			line = line.substr(s + 6);
+
+			s = line.find(',');
+			m_light_pos.x = std::atof(line.substr(0, s).c_str());
+			line = line.substr(s + 1);
+
+			s = line.find(',');
+			m_light_pos.y = std::atof(line.substr(0, s).c_str());
+			line = line.substr(s + 1);
+
+			s = line.find(',');
+			m_light_pos.z = std::atof(line.substr(0, s).c_str());
+			line = line.substr(s + 1);
+
+			s = line.find(',');
+			m_light_rad = std::atof(line.substr(0, s).c_str());
+			continue;
 		}
 	}
 

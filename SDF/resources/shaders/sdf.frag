@@ -7,7 +7,23 @@ uniform mat4 invP;
 uniform mat4 invV;
 uniform vec3 eye;
 
-
+float random (vec2 uv) {
+    return fract(sin(dot(uv,vec2(12.9898,78.233)))*43758.5453123);
+}
+vec3 rand_ball(int s, float radius)
+{
+	vec3 rand_vec = vec3(
+		random(vtx.xy*float(s)),
+		random(vtx.yx*float(s)),
+		random(vtx.xy*float(-s))
+	);
+	rand_vec*=2.0;
+	rand_vec-=1.0;
+	rand_vec = normalize(rand_vec);
+	float rand_rad = random(vtx.yx*float(-s));
+	rand_rad = pow(rand_rad, 1.0/3.0);
+	return rand_vec*rand_rad*radius;
+}
 
 //    
 //   ***   Shapes   ***
@@ -41,6 +57,8 @@ struct object
 };
 uniform object scene_data[100];
 uniform int draw_list = 0;
+uniform vec3 light_pos;
+uniform float light_rad;
 
 float get_distance(in int id, in vec3 point)
 {
@@ -83,6 +101,22 @@ float distance_scene(vec3 point)
 	for(int i = 0; i < draw_list; ++i)
 		min_dist=min(min_dist, make_operation(i,point));
 	return min_dist;
+}
+float ray_cast_light(in vec3 ray_origin, in vec3 ray_dir)
+{
+	vec3 ray_s = ray_origin - light_pos;
+	float a = dot(ray_dir, ray_dir);
+	float b = 2.0 * dot(ray_s, ray_dir);
+	float c = dot(ray_s, ray_s) - light_rad*light_rad;
+	float disc = b*b-4*a*c;
+	if(disc < 0.0f)
+		return -1.0;
+	
+	float t1 = (-b-sqrt(disc)) / (2.0*a);
+	float t2 = (-b+sqrt(disc)) / (2.0*a);
+	if(t1 < 0.0f)
+		return t2 < 0.0f ? -1.0 : t2;
+	return t1;
 }
 
 
@@ -132,77 +166,72 @@ float calcShadowHard(in vec3 shad_origin, in vec3 l_vec)
 		return 1.0;
 	return 0.0;
 }
-float calcShadowSoft1(in vec3 shad_origin, in vec3 l_vec)
+float calcShadowMontecarlo(in vec3 shad_origin, in vec3 l_vec)
 {
-	const float shad_force=15;
+	const int shadow_samples = 30;
+	if(shadow_samples == 0)
+		return 1.0;
 
-	float max_dist=dot(l_vec,l_vec);
-	vec3 l_dir = normalize(l_vec);
-
-	float res = 1.0;
-    float ray_dist = 0.1;
-    
-    for( int i=0; i<march_it; i++ )
-    {
-		float dist = distance_scene( shad_origin + l_dir*ray_dist );
-
-        res = min( res, shad_force*dist/ray_dist );
-        
-        ray_dist += dist;
-        
-        if( res<min_dist
-		|| ray_dist>max_dist )
-			break;
-        
-    }
-    return clamp( res, 0.0, 1.0 );
+	int hit_count=0;
+	for(int i =0; i < shadow_samples; ++i)
+	{
+		vec3 offset = i==0 ? vec3(0.0) : rand_ball(i, light_rad);
+		vec3 local_l_vec = l_vec + offset;
+		float l_dist_2 = dot(local_l_vec,local_l_vec);
+		vec3 l_dir = normalize(local_l_vec);
+		float shad_time = calcTime(shad_origin, l_dir);
+		
+		if(shad_time < 0.0)
+			++hit_count;
+		else if(shad_time*shad_time > l_dist_2)
+			++hit_count;
+	}
+	return hit_count / shadow_samples;
 }
-float calcShadowSoft2(in vec3 shad_origin, in vec3 l_vec)
+float calcShadowConeTrace(in vec3 shad_origin, in vec3 l_vec)
 {
-	const float shad_force=15.0;
+	float halfAngle = tan(light_rad/length(l_vec));
 
-	float max_dist=dot(l_vec,l_vec);
-	vec3 l_dir = normalize(l_vec);
+	float ray_dist = 0.0;
+    for(int i = 0; i < march_it; ++i)
+	{
+    	vec3 p = ray_origin + ray_dir * ray_dist;
+        float dist = distance_scene(p);
 
-	float res = 1.0;
-    float ray_dist = 0.1;
-    float ph = 1e10;
-    
-    for( int i=0; i<march_it; i++ )
-    {
-		float dist = distance_scene( shad_origin + l_dir*ray_dist );
+		if(dist < min_dist)
+			return ray_dist;
 
-		float y = (i==0) ? 0.0 : dist*dist/(2.0*ph); 
-        float d = sqrt(dist*dist-y*y);
-        res = min( res, shad_force*d/max(0.0,ray_dist-y) );
-        ph = dist;
-        
         ray_dist += dist;
-        
-        if( res<min_dist
-		|| ray_dist>max_dist )
+
+		if(ray_dist > max_dist)
 			break;
-        
     }
-    return clamp( res, 0.0, 1.0 );
+
 }
 vec3 render(in vec3 ray_origin, in vec3 ray_dir)
 {
 	float t = calcTime(ray_origin, ray_dir);
+	float l = ray_cast_light(ray_origin, ray_dir);
+	
+	bool hit_void = t < 0.0;
+	bool hit_light = l > 0.0 && (l < t || hit_void);
 
-	if(t < 0.0)
+	if(hit_light)
+		return vec3(0.8,0.8,0.8);
+
+	if(hit_void)
 		return vec3(0.0);
 		
     vec3 p = ray_origin + ray_dir * t;
+
     vec3 n = calcNormal(p);
 
-	const vec3 l_pos = vec3(-4, 4, 4);
-	vec3 l_vec = l_pos-p;
+	vec3 l_vec = light_pos-p;
 
 	vec3 p_ext = p + n * 0.01;
-	float shad = calcShadowHard(p_ext, l_vec);
-	//float shad = calcShadowSoft1(p_ext, l_vec);
-	//float shad = calcShadowSoft2(p_ext, l_vec);
+	//float shad = calcShadowHard(p_ext, l_vec);
+	//float shad = calcShadowMontecarlo(p_ext, l_vec);
+	float shad = calcShadowConeTrace(p_ext, l_vec);
 
 	vec3 l_dir = normalize(l_vec);
     vec3  hal = normalize( l_dir-ray_dir );

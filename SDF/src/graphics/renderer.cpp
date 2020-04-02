@@ -82,6 +82,8 @@ void c_renderer::draw()
 
 		}
 		m_sdf_shader->set_uniform("draw_list", m_scene->draw_size);
+		m_sdf_shader->set_uniform("light_pos", m_scene->m_light_pos);
+		m_sdf_shader->set_uniform("light_rad", m_scene->m_light_rad);
 
 		GL_CALL(glDrawArrays(GL_TRIANGLES, 0, 3));
 	}

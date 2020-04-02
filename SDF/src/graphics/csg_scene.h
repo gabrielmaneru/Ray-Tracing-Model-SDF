@@ -14,4 +14,6 @@ struct csg_scene
 	csg_scene(std::string filename);
 	std::vector<csg_node> nodes;
 	int draw_size{-1};
+	vec3 m_light_pos;
+	float m_light_rad;
 };

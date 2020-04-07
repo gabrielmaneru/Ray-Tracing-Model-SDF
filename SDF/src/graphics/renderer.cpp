@@ -12,6 +12,7 @@ Author: Gabriel Mañeru - gabriel.m
 #include "gl_error.h"
 #include "csg_scene.h"
 #include <platform/input.h>
+#include <platform/editor.h>
 #include <GLFW/glfw3.h>
 #include <GL/gl3w.h>
 #include <iostream>
@@ -84,7 +85,8 @@ void c_renderer::draw()
 		m_sdf_shader->set_uniform("draw_list", m_scene->draw_size);
 		m_sdf_shader->set_uniform("light_pos", m_scene->m_light_pos);
 		m_sdf_shader->set_uniform("light_rad", m_scene->m_light_rad);
-
+		editor->set_uniform(m_sdf_shader);
+		
 		GL_CALL(glDrawArrays(GL_TRIANGLES, 0, 3));
 	}
 	if (input->is_key_down(GLFW_KEY_LEFT_CONTROL) && input->is_key_triggered(GLFW_KEY_R))

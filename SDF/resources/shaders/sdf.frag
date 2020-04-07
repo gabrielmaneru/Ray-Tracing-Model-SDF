@@ -6,12 +6,8 @@ out vec4 out_color;
 uniform mat4 invP;
 uniform mat4 invV;
 uniform vec3 eye;
-uniform int march_it = 100;
-uniform float min_dist = 0.001;
-uniform float max_dist = 1.0e6;
-uniform int shadow_samples = 30;
-uniform vec3 light_pos;
-uniform float light_rad;
+
+
 struct object
 {
 	int operation;
@@ -20,6 +16,14 @@ struct object
 };
 uniform object scene_data[100];
 uniform int draw_list = 0;
+uniform vec3 light_pos;
+uniform float light_rad;
+
+
+uniform int march_it = 100;
+uniform float min_dist = 0.001;
+uniform float max_dist = 1.0e6;
+uniform int shadow_samples = 30;
 
 // Forward Declarations
 vec3 rand_ball(int s, float radius);
@@ -112,10 +116,11 @@ float calcShadowMontecarlo(in ray r)
 	}
 	return hit_count / shadow_samples;
 }
+uniform float rad0 = 0.1;
+uniform float eps = 0.1;
+uniform float tstep = 0.1;
 float calcShadowConeTrace(in ray r)
 {
-	const float rad0 = 0.1;
-	const float eps = 0.1;
 	float tanA0 = light_rad/length(r.d);
 
 	float t = 0.0;
@@ -134,7 +139,7 @@ float calcShadowConeTrace(in ray r)
 			rad = (m-eps)*rad0;
 			tanA = (m-eps)*tanA0;
 		}
-		t +=0.01;
+		t +=tstep;
 
 		if(m < eps)
 			return 0.0;

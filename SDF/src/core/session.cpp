@@ -10,6 +10,7 @@ Author: Gabriel Mañeru - gabriel.m
 #include "session.h"
 #include <platform/window.h>
 #include <graphics/renderer.h>
+#include <platform/editor.h>
 
 bool session::end{false};
 
@@ -17,6 +18,7 @@ bool session::init()
 {
 	if (!window->initialize()) return false;
 	if (!renderer->initialize()) return false;
+	if (!editor->initialize()) return false;
 	return true;
 }
 
@@ -26,12 +28,14 @@ void session::update()
 	{
 		window->update();
 		renderer->draw();
+		editor->drawGui();
 		window->present();
 	} while (!end);
 }
 
 void session::shutdown()
 {
+	editor->shutdown();
 	renderer->shutdown();
 	window->shutdown();
 }

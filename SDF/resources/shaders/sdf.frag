@@ -20,6 +20,7 @@ uniform vec3 light_pos;
 uniform float light_rad;
 
 
+uniform int s_technique = 0;
 uniform int march_it = 100;
 uniform float min_dist = 0.001;
 uniform float max_dist = 1.0e6;
@@ -173,9 +174,20 @@ vec3 render(in ray r)
 
 	vec3 p_ext = p + n * 0.01;
 	ray shad_ray = ray(p_ext, l_vec);
-	//float shad = calcShadowHard(shad_ray);
-	//float shad = calcShadowMontecarlo(shad_ray);
-	float shad = calcShadowConeTrace(shad_ray);
+
+	float shad=1.0;
+	switch (s_technique)
+	{
+	case 0:
+		shad = calcShadowHard(shad_ray);
+		break;
+	case 1:
+		shad = calcShadowMontecarlo(shad_ray);
+		break;
+	case 2:
+		shad = calcShadowConeTrace(shad_ray);
+		break;
+	}
 
 	vec3 l_dir = normalize(l_vec);
     vec3  hal = normalize( l_dir-r.d );
@@ -190,10 +202,12 @@ vec3 render(in ray r)
 	return vec3(col);
 }
 
+float seed;
 void main()
 {
 	vec4 view_point = invP * vec4(vtx, -1.0, 1.0);
 	view_point /= view_point.w;
+    seed = sin(vtx.x*114.0)*sin(vtx.y*211.1);
 
 	vec3 ray_origin = vec3(invV * view_point);
 	vec3 ray_dir = normalize(ray_origin-eye);
@@ -216,13 +230,13 @@ float sdSphere(in vec3 point, in float rad)
 } 
 float sdBox(in vec3 point, in vec3 scale)
 {
-	vec3 diff = abs(point)-scale;
-	return length(max(diff,0.0)) + min(max(diff.x,max(diff.y,diff.z)),0.0) - 0.1;
+    vec3 d = abs(point) - scale;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
 }
 float sdCylinder(in vec3 point, in float height, in float rad)
 {
-	vec2 d = abs(vec2(length(point.xz),point.y)) - vec2(height,rad);
-	return min(max(d.x,d.y),0.0) + length(max(d,0.0));
+    vec2 q = vec2( length(point.xz)-rad, abs(point.y-height*0.5)-height*0.5 );
+    return min( max(q.x,q.y),0.0) + length(max(q,0.0));
 }
 float get_distance(in int id, in vec3 point)
 {
@@ -275,21 +289,19 @@ float map_scene(vec3 point)
 //
 
 // Screen-space noise
-float random (vec2 uv) {
-    return fract(sin(dot(uv,vec2(12.9898,78.233)))*43758.5453123);
-}
+float rand(void) { return fract(sin(seed++)*768.475278); }
 // Random vector unit sphere
 vec3 rand_ball(int s, float radius)
 {
 	vec3 rand_vec = vec3(
-		random(vtx.xy*float(s)),
-		random(vtx.yx*float(s)),
-		random(vtx.xy*float(-s))
+		rand(),
+		rand(),
+		rand()
 	);
 	rand_vec*=2.0;
 	rand_vec-=1.0;
 	rand_vec = normalize(rand_vec);
-	float rand_rad = random(vtx.yx*float(-s));
+	float rand_rad = rand();
 	rand_rad = pow(rand_rad, 1.0/3.0);
 	return rand_vec*rand_rad*radius;
 }

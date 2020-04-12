@@ -8,6 +8,7 @@ Author: Gabriel Mañeru - gabriel.m
 - End Header --------------------------------------------------------*/
 #include "window.h"
 #include "input.h"
+#include <core/session.h>
 #include <GLFW/glfw3.h>
 
 c_window* window = new c_window;
@@ -44,6 +45,8 @@ void c_window::update()
 void c_window::present()
 {
 	glfwSwapBuffers(m_window);
+	if (should_exit())
+		session::end = true;
 }
 void c_window::shutdown()
 {

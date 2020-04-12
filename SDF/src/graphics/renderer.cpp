@@ -43,7 +43,7 @@ bool c_renderer::initialize()
 	// Initialize GLAD
 	if (gl3wInit()) return false;
 	if (!gl3wIsSupported(3,3)) return false;
-	setup_gl_debug();
+	//setup_gl_debug();
 
 	load_quad();
 
@@ -64,6 +64,14 @@ bool c_renderer::initialize()
 
 void c_renderer::draw()
 {
+	if (input->is_key_down(GLFW_KEY_LEFT_CONTROL) && input->is_key_triggered(GLFW_KEY_R))
+	{
+		m_sdf_shader->recompile();
+		delete m_scene;
+		m_scene = new csg_scene("Scene_1.txt");
+		return;
+	}
+
 	m_camera->update();
 	GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 	GL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
@@ -89,12 +97,7 @@ void c_renderer::draw()
 		
 		GL_CALL(glDrawArrays(GL_TRIANGLES, 0, 3));
 	}
-	if (input->is_key_down(GLFW_KEY_LEFT_CONTROL) && input->is_key_triggered(GLFW_KEY_R))
-	{
-		m_sdf_shader->recompile();
-		delete m_scene;
-		m_scene = new csg_scene("Scene_1.txt");
-	}
+	
 }
 
 void c_renderer::shutdown()

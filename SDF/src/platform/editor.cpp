@@ -34,13 +34,14 @@ bool c_editor::initialize()
 }
 void c_editor::set_uniform(shader_program * s)
 {
+	s->set_uniform("s_technique", u_s_technique);
 	s->set_uniform("march_it", u_march_it);
 	s->set_uniform("min_dist", u_min_dist);
 	s->set_uniform("max_dist", u_max_dist);
-	//s->set_uniform("shadow_samples", u_shadow_samples);
+	s->set_uniform("shadow_samples", u_shadow_samples);
 
 	s->set_uniform("rad0", u_rad0);
-	s->set_uniform("eps", u_eps);
+	s->set_uniform("shad_scale", u_shad_scale);
 	s->set_uniform("tstep", u_tstep);
 }
 void c_editor::drawGui()
@@ -49,14 +50,16 @@ void c_editor::drawGui()
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
 
-	if (ImGui::Begin("Body", nullptr))
+	if (ImGui::Begin("Ray Marcher", nullptr))
 	{
+		ImGui::SliderInt("Shadow Technique", &u_s_technique, 0, 2);
 		ImGui::SliderInt("March It", &u_march_it, 1, 100);
 		ImGui::SliderFloat("Min Dist", &u_min_dist, 0.00001f, 1.0f, "%.6f", 5.0f);
 		ImGui::SliderFloat("Max Dist", &u_max_dist, 1.0f,  1000, "%.0f", 5.0f);
+		ImGui::SliderInt("Shadow Samples", &u_shadow_samples, 1, 100);
 
 		ImGui::SliderFloat("Rad0", &u_rad0, 0.0f, 5.0f);
-		ImGui::SliderFloat("EPS", &u_eps, 0.0f, 1.0f, "%.6f", 5.0f);
+		ImGui::SliderFloat("shad_scale", &u_shad_scale, 0.0f, 20.0f);
 		ImGui::SliderFloat("TSTEP", &u_tstep, 0.0f, 0.1f, "%.6f", 5.0f);
 
 		ImGui::End();

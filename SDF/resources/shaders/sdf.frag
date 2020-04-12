@@ -122,35 +122,28 @@ uniform float eps = 0.1;
 uniform float tstep = 0.1;
 float calcShadowConeTrace(in ray r)
 {
-	float tanA0 = light_rad/length(r.d);
-
-	float t = 0.0;
-	float m = 1.0;
-	float rad = rad0;
-	float tanA = tanA0;
-
-    for(int i = 0; i < march_it; ++i)
-	{
-    	vec3 p = r.o + r.d * t;
-        float dist = map_scene(p);
-
-		if(dist < eps*t*tanA)
-		{
-			m=(dist + rad + t*tanA)/(rad0 + t*tanA0);
-			rad = (m-eps)*rad0;
-			tanA = (m-eps)*tanA0;
-		}
-		t +=tstep;
-
-		if(m < eps)
-			return 0.0;
-
-
-		if(t > max_dist)
-			break;
-    }
+	float l_dist = length(r.d);
+	r.d = normalize(r.d);
+	
+	float shad = 1.0;
+    float ray_dist = rad0;
+    float prev_dist;
     
-	return m;
+    for( int i=0; i<32; i++ )
+    {
+		float dist = map_scene( r.o + r.d*ray_dist );
+
+        float y = (i==0) ? 0.0 : dist*dist/(2.0*prev_dist);
+        float d = sqrt(dist*dist-y*y);
+        shad = min( shad, 10.0*d/max(0.0,ray_dist-y) );
+        prev_dist = dist;
+        
+        ray_dist += dist;
+        
+        if( shad<0.0001 || ray_dist>l_dist ) break;
+        
+    }
+    return clamp( shad, 0.0, 1.0 );
 }
 vec3 render(in ray r)
 {

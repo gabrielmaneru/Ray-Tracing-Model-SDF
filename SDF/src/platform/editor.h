@@ -11,7 +11,7 @@
 class shader_program;
 class c_editor
 {
-	int u_s_technique = 0;
+	int u_s_technique = 2;
 	int u_march_it = 95;
 	float u_min_dist = 0.0001f;
 	float u_max_dist = 200.0f;

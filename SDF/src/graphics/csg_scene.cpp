@@ -2,8 +2,9 @@
 #include <fstream>
 #include <map>
 
-csg_scene::csg_scene(std::string filename)
+csg_scene::csg_scene(const std::string& filename)
 {
+	name = filename;
 	const char * path = "../resources/scenes/";
 	std::string filepath = path + filename;
 	std::ifstream file;

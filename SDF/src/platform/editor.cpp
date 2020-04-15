@@ -6,6 +6,8 @@
  * @copyright Copyright (C) 2020 DigiPen Institute of Technology.
 **/
 #include "editor.h"
+#include <graphics/renderer.h>
+#include <graphics/csg_scene.h>
 #include <graphics/shader_program.h>
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_glfw.h>
@@ -41,8 +43,11 @@ void c_editor::set_uniform(shader_program * s)
 	s->set_uniform("shadow_samples", u_shadow_samples);
 
 	s->set_uniform("rad0", u_rad0);
-	s->set_uniform("shad_scale", u_shad_scale);
-	s->set_uniform("tstep", u_tstep);
+	s->set_uniform("min_step", u_min_step);
+	s->set_uniform("factor_step", u_factor_step);
+
+	s->set_uniform("replicate", u_replicate);
+	s->set_uniform("display_shad", u_display_shadow);
 }
 void c_editor::drawGui()
 {
@@ -52,16 +57,37 @@ void c_editor::drawGui()
 
 	if (ImGui::Begin("Ray Marcher", nullptr))
 	{
-		ImGui::SliderInt("Shadow Technique", &u_s_technique, 0, 2);
-		ImGui::SliderInt("March It", &u_march_it, 1, 100);
-		ImGui::SliderFloat("Min Dist", &u_min_dist, 0.00001f, 1.0f, "%.6f", 5.0f);
+		if (ImGui::Button("Scene1"))
+			renderer->m_next_scene = "Scene_1.txt";
+		if (ImGui::Button("Scene2"))
+			renderer->m_next_scene = "Scene_2.txt";
+
+		ImGui::NewLine();
+
+		ImGui::Text("March Info");
+		ImGui::SliderInt("March It", &u_march_it, 1, 300);
+		ImGui::SliderFloat("Min Dist", &u_min_dist, 0.00001f, 1.0f, "%.5f", 5.0f);
 		ImGui::SliderFloat("Max Dist", &u_max_dist, 1.0f,  1000, "%.0f", 5.0f);
-		ImGui::SliderInt("Shadow Samples", &u_shadow_samples, 1, 100);
 
-		ImGui::SliderFloat("Rad0", &u_rad0, 0.0f, 5.0f);
-		ImGui::SliderFloat("shad_scale", &u_shad_scale, 0.0f, 20.0f);
-		ImGui::SliderFloat("TSTEP", &u_tstep, 0.0f, 0.1f, "%.6f", 5.0f);
+		ImGui::NewLine();
 
+		ImGui::Text("Shadow Info");
+		ImGui::SliderInt("Shadow Technique", &u_s_technique, 0, 3);
+		if(u_s_technique == 1)
+			ImGui::SliderInt("Shadow Samples", &u_shadow_samples, 1, 100);
+		if (u_s_technique == 2 || u_s_technique == 3)
+		{
+			ImGui::SliderFloat("Rad0", &u_rad0, 0.00001f, 1.0f, "%.5f", 5.0f);
+			ImGui::SliderFloat("Min Step", &u_min_step, 0.00001f, 1.0f, "%.5f", 5.0f);
+			ImGui::SliderFloat("Factor Step", &u_factor_step, 0.01f, 1.0f, "%.2f", 5.0f);
+		}
+
+		ImGui::NewLine();
+
+		ImGui::SliderFloat("Light Radius", &renderer->m_scene->m_light_rad, 0.01f, 10.0f, "%.2f", 2.0f);
+		ImGui::Checkbox("Replicate", &u_replicate);
+		ImGui::Checkbox("Display Shadow", &u_display_shadow);
+		ImGui::Text(("FPS: " + std::to_string(ImGui::GetIO().Framerate)).c_str());
 		ImGui::End();
 	}
 

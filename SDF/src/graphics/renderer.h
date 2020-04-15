@@ -8,6 +8,7 @@ Author: Gabriel Mañeru - gabriel.m
 - End Header --------------------------------------------------------*/
 #pragma once
 #include <vector>
+#include <string>
 
 struct camera;
 struct csg_scene;
@@ -16,9 +17,11 @@ class c_renderer
 {
 	shader_program* m_sdf_shader{nullptr};
 	camera* m_camera{nullptr};
-	csg_scene* m_scene;
 
 public:
+	csg_scene* m_scene;
+	std::string m_next_scene;
+
 	bool initialize();
 	void draw();
 	void shutdown();

@@ -11,7 +11,8 @@ struct csg_node
 
 struct csg_scene
 {
-	csg_scene(std::string filename);
+	csg_scene(const std::string& filename);
+	std::string name;
 	std::vector<csg_node> nodes;
 	int draw_size{-1};
 	vec3 m_light_pos;

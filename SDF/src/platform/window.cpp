@@ -11,6 +11,8 @@ Author: Gabriel Mañeru - gabriel.m
 #include <core/session.h>
 #include <GLFW/glfw3.h>
 
+#define SingleBuffered 1
+
 c_window* window = new c_window;
 
 bool c_window::initialize()
@@ -22,7 +24,10 @@ bool c_window::initialize()
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
 	glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+#if SingleBuffered
+	glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_FALSE);
+#endif
 	m_window = glfwCreateWindow(m_width, m_height, "Physics System", nullptr, nullptr);
 	if (!m_window) return false;
 	glfwMakeContextCurrent(m_window);
@@ -44,7 +49,12 @@ void c_window::update()
 }
 void c_window::present()
 {
+#if SingleBuffered
+	glFlush();
+#else
 	glfwSwapBuffers(m_window);
+#endif // SingleBuffered
+
 	if (should_exit())
 		session::end = true;
 }

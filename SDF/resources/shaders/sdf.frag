@@ -140,7 +140,7 @@ float calcShadowHard(in ray r)
 float calcShadowMontecarlo(in ray r)
 {
 	// Initialize hit count
-	int hit_count=0;
+	float hit_count=0;
 
 
 	// Raymarch multiple shadowrays

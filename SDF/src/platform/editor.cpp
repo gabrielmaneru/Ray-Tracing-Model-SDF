@@ -74,7 +74,7 @@ void c_editor::drawGui()
 		ImGui::Text("Shadow Info");
 		ImGui::SliderInt("Shadow Technique", &u_s_technique, 0, 3);
 		if(u_s_technique == 1)
-			ImGui::SliderInt("Shadow Samples", &u_shadow_samples, 1, 100);
+			ImGui::SliderInt("Shadow Samples", &u_shadow_samples, 1, 50);
 		if (u_s_technique == 2 || u_s_technique == 3)
 		{
 			ImGui::SliderFloat("Rad0", &u_rad0, 0.00001f, 1.0f, "%.5f", 5.0f);
@@ -87,7 +87,9 @@ void c_editor::drawGui()
 		ImGui::SliderFloat("Light Radius", &renderer->m_scene->m_light_rad, 0.01f, 10.0f, "%.2f", 2.0f);
 		ImGui::Checkbox("Replicate", &u_replicate);
 		ImGui::Checkbox("Display Shadow", &u_display_shadow);
-		ImGui::Text(("FPS: " + std::to_string(ImGui::GetIO().Framerate)).c_str());
+
+		float framerate = ImGui::GetIO().Framerate;
+		ImGui::Text(("FPS: " + std::to_string(framerate)).c_str());
 		ImGui::End();
 	}
 
